@@ -18,40 +18,40 @@ export default function Home() {
 					className="font-bold text-xl tracking-tight"
 					style={{ letterSpacing: "-0.02em" }}
 				>
-					<a href="/">IntelliRack</a>
+					<Link href="/">IntelliRack</Link>
 				</span>
 				<ul className="flex gap-8 text-base font-medium text-[var(--foreground)]">
 					<li>
-						<a
+						<Link
 							href="#features"
 							className="hover:underline underline-offset-4 transition-all cursor-pointer"
 						>
 							Features
-						</a>
+						</Link>
 					</li>
 					<li>
-						<a
+						<Link
 							href="#how"
 							className="hover:underline underline-offset-4 transition-all cursor-pointer"
 						>
 							How it Works
-						</a>
+						</Link>
 					</li>
 					<li>
-						<a
+						<Link
 							href="#tech"
 							className="hover:underline underline-offset-4 transition-all cursor-pointer"
 						>
 							Tech Stack
-						</a>
+						</Link>
 					</li>
 					<li>
-						<a
+						<Link
 							href="#contact"
 							className="hover:underline underline-offset-4 transition-all cursor-pointer"
 						>
 							Contact
-						</a>
+						</Link>
 					</li>
 				</ul>
 			</nav>
