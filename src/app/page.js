@@ -1,3 +1,4 @@
+"use client";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -16,45 +17,53 @@ export default function Home() {
 			{/* Navigation Bar */}
 			<nav className="w-full max-w-7xl mx-auto flex justify-between items-center px-8 py-6 rounded-2xl shadow-sm backdrop-blur-[var(--nav-blur)] bg-[var(--nav-bg)]/50 border border-white/50 mb-12 mt-3">
 				<span
-					className="font-bold text-xl tracking-tight"
+					className="font-bold text-xl tracking-tight text-primary"
 					style={{ letterSpacing: "-0.02em" }}
 				>
 					<Link href="/">IntelliRack</Link>
 				</span>
-				<ul className="flex gap-8 text-base font-medium text-[var(--foreground)]">
-					<li>
-						<Link
-							href="#features"
-							className="hover:underline underline-offset-4 transition-all cursor-pointer"
-						>
-							Features
-						</Link>
-					</li>
-					<li>
-						<Link
-							href="#how"
-							className="hover:underline underline-offset-4 transition-all cursor-pointer"
-						>
-							How it Works
-						</Link>
-					</li>
-					<li>
-						<Link
-							href="#tech"
-							className="hover:underline underline-offset-4 transition-all cursor-pointer"
-						>
-							Tech Stack
-						</Link>
-					</li>
-					<li>
-						<Link
-							href="#contact"
-							className="hover:underline underline-offset-4 transition-all cursor-pointer"
-						>
-							Contact
-						</Link>
-					</li>
-				</ul>
+				<div className="flex items-center gap-6">
+					<ul className="flex gap-8 text-base font-medium text-[var(--foreground)]">
+						<li>
+							<Link
+								href="#features"
+								className="hover:underline underline-offset-4 transition-all cursor-pointer"
+							>
+								Features
+							</Link>
+						</li>
+						<li>
+							<Link
+								href="#how"
+								className="hover:underline underline-offset-4 transition-all cursor-pointer"
+							>
+								How it Works
+							</Link>
+						</li>
+						<li>
+							<Link
+								href="#tech"
+								className="hover:underline underline-offset-4 transition-all cursor-pointer"
+							>
+								Tech Stack
+							</Link>
+						</li>
+						<li>
+							<Link
+								href="#contact"
+								className="hover:underline underline-offset-4 transition-all cursor-pointer"
+							>
+								Contact
+							</Link>
+						</li>
+					</ul>
+					<Link
+						href="/login"
+						className="ml-4 px-6 py-2 rounded-full bg-[var(--button-bg)] text-[var(--button-fg)] font-semibold shadow transition-all hover:bg-[var(--button-hover-bg)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+					>
+						Sign In
+					</Link>
+				</div>
 			</nav>
 
 			{/* Hero Section */}
