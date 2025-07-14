@@ -9,7 +9,6 @@ export function middleware(request) {
 		"/login",
 		"/register",
 		"/",
-		"/delete-account",
 		"/dashboard", //remove this in production
 	];
 

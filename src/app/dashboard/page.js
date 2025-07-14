@@ -2,36 +2,30 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components";
 import { useRouter } from "next/navigation";
-
-function getAuthCookie() {
-	if (typeof document === "undefined") return false;
-	return document.cookie
-		.split(";")
-		.some((c) => c.trim().startsWith("isLoggedIn=true"));
-}
+import { getUser, logout } from "@/lib/auth";
 
 export default function DashboardPage() {
-	const [authenticated, setAuthenticated] = useState(false);
+	const [user, setUser] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const router = useRouter();
 
-	// Demo: check localStorage for 'auth' (simulate login)
 	useEffect(() => {
-		const isAuth = getAuthCookie();
-		setAuthenticated(isAuth);
-		setLoading(false);
-		if (!isAuth) {
+		const u = getUser();
+		if (!u) {
 			router.replace("/login");
+		} else {
+			setUser(u);
+			setLoading(false);
 		}
 	}, [router]);
 
 	function handleSignOut() {
-		document.cookie = "isLoggedIn=; path=/; max-age=0";
+		logout();
 		router.replace("/login");
 	}
 
 	if (loading) return null;
-	if (!authenticated) return null;
+	if (!user) return null;
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-transparent">
@@ -40,7 +34,8 @@ export default function DashboardPage() {
 					Welcome to IntelliRack!
 				</h1>
 				<p className="text-[var(--foreground)]/80 text-center mb-4">
-					You are signed in. This is your dashboard.
+					You are signed in as{" "}
+					<span className="font-semibold">{user.name}</span>.
 				</p>
 				<Button variant="outline" onClick={handleSignOut} fullWidth>
 					Sign Out
