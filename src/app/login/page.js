@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { login } from "@/lib/auth";
-
+import Image from "next/image";
+// import rack from "@/public/rack.png";
 export default function LoginPage() {
 	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(false);
@@ -43,26 +44,48 @@ export default function LoginPage() {
 
 	return (
 		<div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-			<div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-				<div className="absolute inset-0 bg-zinc-900" />
-				<div className="relative z-20 flex items-center justify-center text-lg font-medium"></div>
-				<div className="relative z-20 flex items-center text-lg font-medium">
-					IntelliRack
+			<div className="relative hidden h-full flex-col bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-10 text-white lg:flex">
+				<div className="relative z-20 flex items-center text-3xl font-bold">
+					<span className="bg-white bg-clip-text text-transparent">
+						<Link href="/">IntelliRack</Link>
+					</span>
 				</div>
-				<div className="relative z-20 flex items-center text-lg font-medium">
-					<h1 className="text-4xl font-bold">3D RACK</h1>
+				<div
+					style={{
+						position: "relative",
+						width: "100%",
+						height: "300px",
+						marginTop: "2rem",
+						marginBottom: "2rem",
+					}}
+				>
+					<Image
+						src="/rack.svg"
+						alt="IntelliRack"
+						fill
+						style={{ objectFit: "contain" }}
+					/>
 				</div>
-				<div className="relative z-20 mt-auto"></div>
+
+				<div className="relative z-20 mt-auto">
+					<blockquote className="space-y-2">
+						<p className="text-lg">
+							&quot;Smart inventory management for the modern world. Track,
+							analyze, and optimize your stock with ease.&quot;
+						</p>
+						<footer className="text-sm">Powered by IoT & AI</footer>
+					</blockquote>
+				</div>
 			</div>
-			<div className="lg:p-8">
-				<div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-					<Card>
-						<CardHeader className="space-y-1">
-							<CardTitle className="text-2xl text-center">
+			<div className="lg:p-8 bg-gradient-to-br from-purple-500 via-pink-500 to-indigo-500 w-full h-full">
+				<div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[600px] sm:h-[750px] animate-fadein bg-white/90 p-6 rounded-2xl shadow-2xl border border-white/50 backdrop-blur-3xl bg-opacity-70 dark:bg-zinc-900/40">
+					<Card className=" border border-gray/60 shadow-lg backdrop-blur-lg bg-white/10 m-13 animate-fadein ">
+						<CardHeader className="space-y-3">
+							<CardTitle className="text-2xl text-center bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
 								Welcome back
 							</CardTitle>
 							<CardDescription className="text-center">
-								Enter your email to sign in to your account
+								Sign in to your IntelliRack account
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -82,6 +105,7 @@ export default function LoginPage() {
 											required
 											value={form.email}
 											onChange={handleChange}
+											className="bg-white/5 border-white/20"
 										/>
 									</div>
 									<div className="grid gap-2">
@@ -95,6 +119,7 @@ export default function LoginPage() {
 											required
 											value={form.password}
 											onChange={handleChange}
+											className="bg-white/5 border-white/20"
 										/>
 									</div>
 									{error && (
@@ -102,7 +127,10 @@ export default function LoginPage() {
 											{error}
 										</div>
 									)}
-									<Button disabled={isLoading}>
+									<Button
+										disabled={isLoading}
+										className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:shadow-lg transition-shadow"
+									>
 										{isLoading && (
 											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 										)}
@@ -116,7 +144,7 @@ export default function LoginPage() {
 								Don&apos;t have an account?{" "}
 								<Link
 									href="/register"
-									className="text-primary underline-offset-4 hover:underline"
+									className="text-primary underline-offset-4 hover:underline font-medium"
 								>
 									Sign up
 								</Link>

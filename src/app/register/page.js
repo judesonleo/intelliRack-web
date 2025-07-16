@@ -44,24 +44,31 @@ export default function RegisterPage() {
 
 	return (
 		<div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-			<div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-				<div className="absolute inset-0 bg-zinc-900" />
-				<div className="relative z-20 flex items-center text-lg font-medium">
-					IntelliRack
+			<div className="relative hidden h-full flex-col bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-10 text-white lg:flex">
+				<div className="relative z-20 flex items-center text-3xl font-bold">
+					<span className="bg-white bg-clip-text text-transparent">
+						IntelliRack
+					</span>
 				</div>
-				<div className="relative z-20 flex items-center text-lg font-medium">
-					<h1 className="text-4xl font-bold">3D RACK</h1>
+				<div className="relative z-20 mt-auto">
+					<blockquote className="space-y-2">
+						<p className="text-lg">
+							&quot;Smart inventory management for the modern world. Track,
+							analyze, and optimize your stock with ease.&quot;
+						</p>
+						<footer className="text-sm">Powered by IoT & AI</footer>
+					</blockquote>
 				</div>
 			</div>
 			<div className="lg:p-8">
-				<div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-					<Card>
+				<div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px] animate-fadein">
+					<Card className="border border-white/20 shadow-lg backdrop-blur-lg bg-white/10">
 						<CardHeader className="space-y-1">
-							<CardTitle className="text-2xl text-center">
+							<CardTitle className="text-2xl text-center bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
 								Create an account
 							</CardTitle>
 							<CardDescription className="text-center">
-								Enter your email below to create your account
+								Join IntelliRack and revolutionize your inventory management
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
@@ -81,6 +88,7 @@ export default function RegisterPage() {
 											required
 											value={form.name}
 											onChange={handleChange}
+											className="bg-white/5 border-white/20"
 										/>
 									</div>
 									<div className="grid gap-2">
@@ -97,6 +105,7 @@ export default function RegisterPage() {
 											required
 											value={form.email}
 											onChange={handleChange}
+											className="bg-white/5 border-white/20"
 										/>
 									</div>
 									<div className="grid gap-2">
@@ -110,6 +119,7 @@ export default function RegisterPage() {
 											required
 											value={form.password}
 											onChange={handleChange}
+											className="bg-white/5 border-white/20"
 										/>
 									</div>
 									{error && (
@@ -117,7 +127,10 @@ export default function RegisterPage() {
 											{error}
 										</div>
 									)}
-									<Button disabled={isLoading}>
+									<Button
+										disabled={isLoading}
+										className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white hover:shadow-lg transition-shadow animate-bouncein"
+									>
 										{isLoading && (
 											<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 										)}

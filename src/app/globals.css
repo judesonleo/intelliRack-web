@@ -176,7 +176,7 @@ body {
 	position: fixed;
 	inset: 0;
 	z-index: -20;
-	background: linear-gradient(12deg, #163a3f 15%, #4f6535 70%, #5674d5 100%);
+	/* background: #9f9fb2; */
 	transition: background var(--transition);
 }
 
