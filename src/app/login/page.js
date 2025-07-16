@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState } from "react";
@@ -51,22 +52,15 @@ export default function LoginPage() {
 					</span>
 				</div>
 				<div
-					style={{
-						position: "relative",
-						width: "100%",
-						height: "300px",
-						marginTop: "2rem",
-						marginBottom: "2rem",
-					}}
+				// style={{
+				// 	position: "relative",
+				// 	width: "100%",
+				// 	height: "300px",
+				// 	marginTop: "2rem",
+				// 	marginBottom: "2rem",
+				// }}
 				>
-					<Image
-						src="/images/rack.png"
-						alt="IntelliRack"
-						fill
-						style={{ objectFit: "contain" }}
-						// width={100}
-						// height={100}
-					/>
+					<img src="/images/rack.png" alt="My Image" width="300" height="200" />
 				</div>
 
 				<div className="relative z-20 mt-auto">
