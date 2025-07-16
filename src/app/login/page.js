@@ -60,10 +60,12 @@ export default function LoginPage() {
 					}}
 				>
 					<Image
-						src="/rack.svg"
+						src="/images/rack.png"
 						alt="IntelliRack"
 						fill
 						style={{ objectFit: "contain" }}
+						// width={100}
+						// height={100}
 					/>
 				</div>
 

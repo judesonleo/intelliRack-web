@@ -60,9 +60,9 @@ export default function RegisterPage() {
 					</blockquote>
 				</div>
 			</div>
-			<div className="lg:p-8">
-				<div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px] animate-fadein">
-					<Card className="border border-white/20 shadow-lg backdrop-blur-lg bg-white/10">
+			<div className="lg:p-8 bg-gradient-to-br from-purple-500 via-pink-500 to-indigo-500">
+				<div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[600px] sm:h-[750px] animate-fadein bg-white/90 p-6 rounded-2xl shadow-2xl border border-white/50 backdrop-blur-3xl bg-opacity-70 dark:bg-zinc-900/40 ">
+					<Card className="border border-white/20 shadow-lg backdrop-blur-lg bg-white/10 m-13 animate-fadein ">
 						<CardHeader className="space-y-1">
 							<CardTitle className="text-2xl text-center bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
 								Create an account
