@@ -16,7 +16,8 @@ import {
 } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { register as registerUser, login } from "@/lib/auth";
-
+import Image from "next/image";
+import rack from "../../../public/images/rack.png";
 export default function RegisterPage() {
 	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(false);
@@ -47,8 +48,19 @@ export default function RegisterPage() {
 			<div className="relative hidden h-full flex-col bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 p-10 text-white lg:flex">
 				<div className="relative z-20 flex items-center text-3xl font-bold">
 					<span className="bg-white bg-clip-text text-transparent">
-						IntelliRack
+						<Link href="/"> IntelliRack</Link>
 					</span>
+				</div>
+				<div className="mt-15 ">
+					<Image
+						src={rack}
+						alt="IntelliRack"
+						width={500}
+						height={450}
+						style={{ objectFit: "contain" }}
+						// className="shadow-xl"
+						priority
+					/>
 				</div>
 				<div className="relative z-20 mt-auto">
 					<blockquote className="space-y-2">
@@ -60,6 +72,7 @@ export default function RegisterPage() {
 					</blockquote>
 				</div>
 			</div>
+
 			<div className="lg:p-8 bg-gradient-to-br from-purple-500 via-pink-500 to-indigo-500 w-full h-full">
 				<div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[600px] sm:h-[750px] animate-fadein bg-white/90 p-6 rounded-2xl shadow-2xl border border-white/50 backdrop-blur-3xl bg-opacity-70 dark:bg-zinc-900/40 ">
 					<Card className="border border-white/20 shadow-lg backdrop-blur-lg bg-white/10 m-13 animate-fadein ">

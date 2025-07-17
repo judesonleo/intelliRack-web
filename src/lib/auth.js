@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3030/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export async function login(email, password) {
 	const res = await fetch(`${API_URL}/auth/login`, {
@@ -10,6 +10,7 @@ export async function login(email, password) {
 	const data = await res.json();
 	localStorage.setItem("token", data.token);
 	localStorage.setItem("user", JSON.stringify(data.user));
+	localStorage.setItem("email", email);
 	return data.user;
 }
 
@@ -26,6 +27,7 @@ export async function register(name, email, password) {
 export function logout() {
 	localStorage.removeItem("token");
 	localStorage.removeItem("user");
+	localStorage.removeItem("email");
 }
 
 export function getToken() {
@@ -34,7 +36,12 @@ export function getToken() {
 
 export function getUser() {
 	const user = localStorage.getItem("user");
-	return user ? JSON.parse(user) : null;
+	const email = localStorage.getItem("email");
+	return user ? { ...JSON.parse(user), email } : null;
+}
+
+export function getEmail() {
+	return localStorage.getItem("email");
 }
 
 export async function fetchWithAuth(url, options = {}) {

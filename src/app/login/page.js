@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState } from "react";
@@ -19,6 +18,8 @@ import { Loader2 } from "lucide-react";
 import { login } from "@/lib/auth";
 import Image from "next/image";
 // import rack from "@/public/rack.png";
+import rack from "../../../public/images/rack.png";
+
 export default function LoginPage() {
 	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(false);
@@ -51,16 +52,16 @@ export default function LoginPage() {
 						<Link href="/">IntelliRack</Link>
 					</span>
 				</div>
-				<div
-				// style={{
-				// 	position: "relative",
-				// 	width: "100%",
-				// 	height: "300px",
-				// 	marginTop: "2rem",
-				// 	marginBottom: "2rem",
-				// }}
-				>
-					<img src="/images/rack.png" alt="My Image" width="300" height="200" />
+				<div className="mt-15 ">
+					<Image
+						src={rack}
+						alt="IntelliRack"
+						width={500}
+						height={450}
+						style={{ objectFit: "contain" }}
+						// className="shadow-xl"
+						priority
+					/>
 				</div>
 
 				<div className="relative z-20 mt-auto">
