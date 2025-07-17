@@ -9,9 +9,6 @@ export default function DeviceList({ devices, onDeviceClick, AddDeviceCard }) {
 			</h3>
 			<ul className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
 				{/* Always show Add Device Card as the first card */}
-				<li>
-					<AddDeviceCard />
-				</li>
 				{/* Device Cards */}
 				{devices.length === 0 ? (
 					<li className="col-span-full flex items-center justify-center text-gray-500 min-h-[120px] text-lg">
@@ -24,6 +21,9 @@ export default function DeviceList({ devices, onDeviceClick, AddDeviceCard }) {
 						</li>
 					))
 				)}
+				<li>
+					<AddDeviceCard />
+				</li>
 			</ul>
 		</div>
 	);
