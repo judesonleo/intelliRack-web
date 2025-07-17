@@ -484,7 +484,7 @@ export default function DashboardPage() {
 						<h3 className="text-lg font-semibold mb-2 text-[var(--primary)]">
 							Settings
 						</h3>
-						<div className="text-gray-500">[Settings Coming Soon]</div>
+						<div className="text-gray-500">[Settings Coming Son]</div>
 					</div>
 				)}
 			</div>
