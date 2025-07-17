@@ -9,6 +9,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV NODE_ENV=production
 RUN if grep -q "output.*standalone" next.config.mjs; then echo "Standalone output already configured"; else sed -i "s/const nextConfig = {/const nextConfig = {\n  output: 'standalone',/" next.config.mjs; fi
 RUN npm run build
 
