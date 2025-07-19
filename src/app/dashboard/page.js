@@ -146,6 +146,9 @@ export default function DashboardPage() {
 	useEffect(() => {
 		if (!user) return;
 
+		console.log("User object for socket auth:", user);
+		console.log("User ID:", user._id);
+
 		const socket = io(API_BASE.replace("/api", ""), {
 			transports: ["websocket"],
 			auth: {
@@ -157,7 +160,11 @@ export default function DashboardPage() {
 		socket.on("connect", () => {
 			console.log("Connected to server");
 			// Authenticate socket with user ID
-			socket.emit("authenticate", { userId: user._id });
+			if (user._id) {
+				socket.emit("authenticate", { userId: user._id });
+			} else {
+				console.error("No user ID found in user object:", user);
+			}
 		});
 
 		socket.on("authenticated", (data) => {
