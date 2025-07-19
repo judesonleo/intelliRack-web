@@ -1,55 +1,151 @@
 import React from "react";
 import Image from "next/image";
 import slot from "../../../public/images/slot.png";
+const DeviceCard = ({ device, onDeviceClick }) => {
+	const getStatusColor = (status) => {
+		switch (status) {
+			case "GOOD":
+				return "text-green-500";
+			case "OK":
+				return "text-yellow-500";
+			case "LOW":
+				return "text-orange-500";
+			case "VLOW":
+				return "text-red-500";
+			case "EMPTY":
+				return "text-red-600";
+			default:
+				return "text-gray-500";
+		}
+	};
 
-export default function DeviceCard({ device, onClick }) {
+	const getOnlineStatus = () => {
+		if (!device.isOnline)
+			return { text: "Offline", color: "text-red-500", bg: "bg-red-100" };
+		const lastSeen = new Date(device.lastSeen);
+		const now = new Date();
+		const diffMinutes = Math.floor((now - lastSeen) / (1000 * 60));
+
+		if (diffMinutes < 1)
+			return { text: "Online", color: "text-green-500", bg: "bg-green-100" };
+		if (diffMinutes < 5)
+			return { text: "Online", color: "text-green-500", bg: "bg-green-100" };
+		return { text: "Online", color: "text-yellow-500", bg: "bg-yellow-100" };
+	};
+
+	const formatLastSeen = (lastSeen) => {
+		if (!lastSeen) return "Never";
+		const date = new Date(lastSeen);
+		const now = new Date();
+		const diffMinutes = Math.floor((now - date) / (1000 * 60));
+
+		if (diffMinutes < 1) return "Just now";
+		if (diffMinutes < 60) return `${diffMinutes}m ago`;
+		const diffHours = Math.floor(diffMinutes / 60);
+		if (diffHours < 24) return `${diffHours}h ago`;
+		return date.toLocaleDateString();
+	};
+
+	const onlineStatus = getOnlineStatus();
+
 	return (
 		<div
-			className="relative rounded-3xl bg-white/30 dark:bg-zinc-900/30 backdrop-blur-[40px] border border-white/40 shadow-2xl flex flex-col items-center p-6 min-h-[320px] group hover:scale-[1.03] transition-transform cursor-pointer"
-			onClick={onClick}
+			className="relative group cursor-pointer transition-all duration-300 hover:scale-105"
+			onClick={() => onDeviceClick(device)}
 		>
-			{/* Three Dots Menu */}
-			<div className="absolute top-4 right-4 z-10">
-				<button
-					className="p-2 rounded-full bg-white/40 hover:bg-white/70 transition-colors shadow-lg border border-white/30 focus:outline-none"
-					onClick={(e) => {
-						e.stopPropagation();
-					}}
-				>
-					{/* Inline SVG for vertical ellipsis */}
-					<svg width="22" height="22" fill="none" viewBox="0 0 24 24">
-						<circle cx="12" cy="5" r="1.5" fill="#6366f1" />
-						<circle cx="12" cy="12" r="1.5" fill="#6366f1" />
-						<circle cx="12" cy="19" r="1.5" fill="#6366f1" />
+			{/* Glassmorphic Card */}
+			<div className="relative overflow-hidden rounded-2xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl hover:shadow-3xl transition-all duration-300">
+				{/* Gradient Overlay */}
+				<div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+				{/* Status Indicator */}
+				<div className="flex  justify-center items-center gap-2 absolute top-3 left-3">
+					<div
+						className={`w-2 h-2 rounded-full ${
+							device.isOnline ? "bg-green-400 animate-pulse" : "bg-red-400"
+						}`}
+					/>
+					<div
+						className={`px-2 py-1 rounded-full text-xs font-medium ${onlineStatus.bg} ${onlineStatus.color}`}
+					>
+						{onlineStatus.text}
+					</div>
+				</div>
+				<button className="rounded-full hover:bg-white/10 transition-colors absolute top-3 right-3">
+					<svg
+						className="w-5 h-5 text-gray-300"
+						fill="currentColor"
+						viewBox="0 0 20 20"
+					>
+						<path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
 					</svg>
 				</button>
-				{/* TODO: Dropdown menu for Edit/Delete actions */}
+
+				{/* Content */}
+				<div className="relative py-6">
+					{/* Device Image */}
+					<div className="flex justify-center mb-4 w-full h-full">
+						<div className="relative rounded-2xl overflow-hidden flex items-center justify-center">
+							<Image
+								src={slot}
+								alt="Device Slot"
+								width={300}
+								height={300}
+								className="object-cover w-full h-full rounded-2xl"
+								draggable={false}
+							/>
+						</div>
+					</div>
+
+					{/* Device Info */}
+					<div className="text-center mb-4">
+						<h3 className="text-lg font-semibold text-black mb-1">
+							{device.name || `Device ${device.rackId}`}
+						</h3>
+						<p className="text-sm text-black mb-2">
+							{device.location || "No location set"}
+						</p>
+
+						{/* Weight and Status */}
+						<div className="space-y-2">
+							<div className="text-2xl font-bold text-black">
+								{device.lastWeight ? `${device.lastWeight.toFixed(1)}g` : "--"}
+							</div>
+							<div
+								className={`text-sm font-medium ${getStatusColor(
+									device.lastStatus
+								)}`}
+							>
+								{device.lastStatus || "UNKNOWN"}
+							</div>
+						</div>
+					</div>
+
+					{/* Last Seen */}
+					<div className="text-center">
+						<p className="text-xs text-gray-400">
+							Last seen: {formatLastSeen(device.lastSeen)}
+						</p>
+						{device.ipAddress && (
+							<p className="text-xs text-gray-400 mt-1">
+								IP: {device.ipAddress}
+							</p>
+						)}
+					</div>
+
+					{/* Action Buttons */}
+					<div className="flex  mt-4 pt-4 border-t border-white/10 items-center justify-center">
+						{/* Three Dots Menu */}
+
+						{/* Device Settings Button */}
+						<button className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-sm transition-colors bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-lg">
+							Device Settings
+						</button>
+					</div>
+				</div>
 			</div>
-			{/* Device Image */}
-			<div className="overflow-hidden mb-4 w-full h-full">
-				<Image
-					src={slot}
-					alt="Device Slot"
-					className="object-cover w-full h-full rounded-2xl"
-					draggable={false}
-				/>
-			</div>
-			{/* Device Info */}
-			<div className="flex flex-col items-center gap-1 w-full">
-				<span className="font-bold text-xl text-gray-800 dark:text-white text-center">
-					{device.name}
-				</span>
-				<span className="text-xs text-gray-500">Rack ID: {device.rackId}</span>
-				<span className="text-xs text-gray-500">
-					Location: {device.location || "-"}
-				</span>
-				<span className="text-xs text-gray-400">
-					Created: {new Date(device.createdAt).toLocaleString()}
-				</span>
-			</div>
-			<button className="mt-4 w-fit rounded-full px-6 py-2 text-sm font-semibold shadow bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white border-none hover:shadow-xl transition-all">
-				Device Settings
-			</button>
 		</div>
 	);
-}
+};
+
+export default DeviceCard;

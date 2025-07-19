@@ -34,6 +34,7 @@ import SettingsWidget from "@/components/dashboard/SettingsWidget";
 import LogsList from "@/components/dashboard/LogsList";
 import AlertsList from "@/components/dashboard/AlertsList";
 import ChartsWidget from "@/components/dashboard/ChartsWidget";
+
 const API_BASE =
 	process.env.NEXT_PUBLIC_API_URL || "https://intellibackend.judesonleo.me/api";
 
@@ -85,9 +86,27 @@ export default function DashboardPage() {
 	const [liveStatus, setLiveStatus] = useState({});
 	const [error, setError] = useState("");
 	const [tab, setTab] = useState(TABS[0]);
-	const [selectedDevice, setSelectedDevice] = useState(null); // <-- NEW
+	const [selectedDevice, setSelectedDevice] = useState(null);
 	const router = useRouter();
 	const socketRef = useRef(null);
+
+	const fetchDevices = async () => {
+		try {
+			const token = localStorage.getItem("token");
+			const response = await fetch(`${API_BASE}/devices/my`, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+				},
+			});
+			if (response.ok) {
+				const devicesData = await response.json();
+				setDevices(devicesData);
+			}
+		} catch (error) {
+			console.error("Error fetching devices:", error);
+		}
+	};
 
 	useEffect(() => {
 		async function fetchAll() {
@@ -126,10 +145,25 @@ export default function DashboardPage() {
 
 	useEffect(() => {
 		if (!user) return;
+
 		const socket = io(API_BASE.replace("/api", ""), {
 			transports: ["websocket"],
+			auth: {
+				token: localStorage.getItem("token"),
+			},
 		});
 		socketRef.current = socket;
+
+		socket.on("connect", () => {
+			console.log("Connected to server");
+			// Authenticate socket with user ID
+			socket.emit("authenticate", { userId: user._id });
+		});
+
+		socket.on("authenticated", (data) => {
+			console.log("Socket authenticated:", data);
+		});
+
 		socket.on("update", (data) => {
 			setLiveStatus((prev) => {
 				const { deviceId, slotId, ...rest } = data;
@@ -142,12 +176,64 @@ export default function DashboardPage() {
 				};
 			});
 		});
+
+		socket.on("deviceStatus", (data) => {
+			setDevices((prev) =>
+				prev.map((device) =>
+					device.rackId === data.deviceId
+						? { ...device, isOnline: data.isOnline, lastSeen: data.lastSeen }
+						: device
+				)
+			);
+		});
+
 		socket.on("alert", (data) => {
 			setAlerts((prev) => [
 				{ ...data, createdAt: new Date(), acknowledged: false },
 				...prev,
 			]);
 		});
+
+		socket.on("deviceRegistered", (response) => {
+			if (response.success) {
+				fetchDevices(); // Refresh devices list
+			}
+		});
+
+		socket.on("commandResponse", (data) => {
+			console.log("Command response received:", data);
+			// You can show a notification or update UI here
+			// For now, just log it
+		});
+
+		// Utility function to send broadcast commands
+		window.sendBroadcastCommand = (command, data = {}) => {
+			if (socketRef.current) {
+				socketRef.current.emit("sendCommand", {
+					deviceId: "broadcast",
+					command: "broadcast",
+					broadcastCommand: command,
+					...data,
+				});
+			}
+		};
+
+		// Utility function to send device-specific commands
+		window.sendDeviceCommand = (deviceId, command, data = {}) => {
+			if (socketRef.current) {
+				socketRef.current.emit("sendCommand", {
+					deviceId,
+					command,
+					...data,
+				});
+			}
+		};
+
+		socket.on("deviceAdded", (data) => {
+			console.log("New device added:", data);
+			fetchDevices(); // Refresh devices list
+		});
+
 		return () => socket.disconnect();
 	}, [user]);
 
@@ -155,6 +241,10 @@ export default function DashboardPage() {
 		logout();
 		router.replace("/login");
 	}
+
+	const handleAddDevice = () => {
+		fetchDevices(); // Refresh devices after adding
+	};
 
 	if (loading)
 		return (
@@ -179,11 +269,10 @@ export default function DashboardPage() {
 							IntelliRack
 						</span>
 					</div>
-					{/* <span className="text-xl font-bold text-gray-700">Dashboard</span> */}
 					<GlassTabs tabs={TABS} currentTab={tab} onTabChange={setTab} glassy />
 				</div>
 				<div className="flex items-center gap-4">
-					<div className="rounded-full bg-white/20 dark:bg-zinc-900/25 backdrop-blur-[30px] border border-white/30 shadow-2xl px-4 py-2 flex flex-col items- ">
+					<div className="rounded-full bg-white/20 dark:bg-zinc-900/25 backdrop-blur-[30px] border border-white/30 shadow-2xl px-4 py-2 flex flex-col items-center">
 						<span className="font-semibold text-gray-700">{user.name}</span>
 						<span className="text-xs text-gray-500">{user.email}</span>
 					</div>
@@ -227,7 +316,8 @@ export default function DashboardPage() {
 					<DeviceList
 						devices={devices}
 						onDeviceClick={setSelectedDevice}
-						AddDeviceCard={AddDeviceCard}
+						onAddDevice={handleAddDevice}
+						socket={socketRef.current}
 					/>
 				)}
 				{tab === "Logs" && <LogsList logs={logs} />}
@@ -238,7 +328,9 @@ export default function DashboardPage() {
 			</div>
 			<DeviceSheet
 				device={selectedDevice}
+				isOpen={!!selectedDevice}
 				onClose={() => setSelectedDevice(null)}
+				socket={socketRef.current}
 			/>
 		</DashboardLayout>
 	);
