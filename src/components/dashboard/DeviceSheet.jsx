@@ -109,7 +109,11 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 							/>
 						</div>
 						<div>
-							<h2 className="text-2xl font-bold text-white">{device.name}</h2>
+							<h2 className="text-2xl font-bold text-white">
+								{typeof device.name === "string"
+									? device.name
+									: device.rackId || "Unknown Device"}
+							</h2>
 							<p className="text-gray-300">Rack ID: {device.rackId}</p>
 						</div>
 					</div>

@@ -296,8 +296,12 @@ export default function DashboardPage() {
 				</div>
 				<div className="flex items-center gap-4">
 					<div className="rounded-full bg-white/20 dark:bg-zinc-900/25 backdrop-blur-[30px] border border-white/30 shadow-2xl px-4 py-2 flex flex-col items-center">
-						<span className="font-semibold text-gray-700">{user.name}</span>
-						<span className="text-xs text-gray-500">{user.email}</span>
+						<span className="font-semibold text-gray-700">
+							{typeof user.name === "string" ? user.name : "User"}
+						</span>
+						<span className="text-xs text-gray-500">
+							{typeof user.email === "string" ? user.email : "user@example.com"}
+						</span>
 					</div>
 					<Button
 						onClick={handleSignOut}

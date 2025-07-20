@@ -8,8 +8,12 @@ export default function ProfileWidget({ user }) {
 				Profile
 			</h3>
 			<div className="flex flex-col gap-1 items-center">
-				<span className="font-bold text-lg">{user.name}</span>
-				<span className="text-xs text-gray-500">{user.email}</span>
+				<span className="font-bold text-lg">
+					{typeof user.name === "string" ? user.name : "User"}
+				</span>
+				<span className="text-xs text-gray-500">
+					{typeof user.email === "string" ? user.email : "user@example.com"}
+				</span>
 			</div>
 			<Button className="w-fit rounded-full px-6 py-2 text-sm font-semibold shadow bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white border-none hover:shadow-xl transition-all">
 				Edit Profile

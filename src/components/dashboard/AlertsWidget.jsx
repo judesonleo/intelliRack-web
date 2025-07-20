@@ -23,7 +23,13 @@ export default function AlertsWidget({ alerts }) {
 							{a.ingredient} ({a.type})
 						</span>
 						<span className="text-xs">
-							Device: {a.device || "-"} | Slot: {a.slotId || "-"}
+							Device:{" "}
+							{typeof a.device === "string"
+								? a.device
+								: a.device && typeof a.device === "object"
+								? a.device.rackId || a.device.id || "-"
+								: "-"}
+							| Slot: {a.slotId || "-"}
 						</span>
 						<span className="text-xs text-gray-600">
 							{new Date(a.createdAt).toLocaleString()}

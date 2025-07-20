@@ -28,12 +28,16 @@ export default function ActivityTimeline({ timeline, logs, devices }) {
 		// Add device events
 		devices.forEach((device) => {
 			if (device.lastSeen) {
+				const deviceName =
+					typeof device.name === "string"
+						? device.name
+						: device.rackId || "Unknown Device";
 				activities.push({
 					id: `device-${device._id}`,
 					time: new Date(device.lastSeen),
-					event: `${device.name}: ${device.isOnline ? "Online" : "Offline"}`,
+					event: `${deviceName}: ${device.isOnline ? "Online" : "Offline"}`,
 					type: "device",
-					device: device.name,
+					device: deviceName,
 					icon: device.isOnline ? "🟢" : "🔴",
 				});
 			}
@@ -41,12 +45,17 @@ export default function ActivityTimeline({ timeline, logs, devices }) {
 
 		// Add log events
 		logs.forEach((log, index) => {
+			const deviceName = log.device?.name
+				? typeof log.device.name === "string"
+					? log.device.name
+					: log.device.rackId || "Unknown"
+				: "Unknown";
 			activities.push({
 				id: `log-${index}`,
 				time: new Date(log.timestamp),
 				event: `${log.ingredient || "Unknown"}: ${log.weight}g (${log.status})`,
 				type: "log",
-				device: log.device?.name || "Unknown",
+				device: deviceName,
 				icon: getStatusIcon(log.status),
 			});
 		});

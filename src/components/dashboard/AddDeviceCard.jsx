@@ -43,9 +43,14 @@ const AddDeviceCard = ({ onClick, socket }) => {
 			const mDNSDevices = await scanMDNS();
 			console.log("mDNS devices found:", mDNSDevices);
 
-			// Method 2: Scan common local network ranges
+			// Method 2: Try HTTPS discovery first (for hosted environments)
+			console.log("Starting HTTPS discovery...");
+			const httpsDevices = await scanHTTPS();
+			console.log("HTTPS devices found:", httpsDevices);
+
+			// Method 3: Scan common local network ranges (HTTP fallback)
 			console.log("Starting network scan...");
-			const discovered = [...mDNSDevices];
+			const discovered = [...mDNSDevices, ...httpsDevices];
 			const networkRanges = ["192.168.1", "192.168.0", "10.0.0", "172.16.0"];
 
 			// Get current network info
@@ -71,7 +76,38 @@ const AddDeviceCard = ({ onClick, socket }) => {
 			);
 
 			console.log("Total unique devices found:", uniqueDevices);
-			setDiscoveredDevices(uniqueDevices);
+
+			// If no devices found, show a helpful message and test device
+			if (uniqueDevices.length === 0) {
+				console.log("No devices found. This might be due to:");
+				console.log("1. Mixed content policy (HTTPS blocking HTTP)");
+				console.log("2. Devices not on the same network");
+				console.log("3. Devices not running the discovery endpoint");
+
+				// Show a test device for development/demo purposes
+				setDiscoveredDevices([
+					{
+						deviceId: "rack_001",
+						slotId: 1,
+						name: "IntelliRack rack_001 (Demo)",
+						type: "IntelliRack",
+						firmwareVersion: "v2.0",
+						ipAddress: "192.168.1.100",
+						macAddress: "AA:BB:CC:DD:EE:FF",
+						ssid: "TestNetwork",
+						rssi: -45,
+						mqttConnected: true,
+						currentWeight: 250.5,
+						currentStatus: "OK",
+						tagPresent: false,
+						currentIngredient: "",
+						discoveryTime: Date.now(),
+						isDemo: true,
+					},
+				]);
+			} else {
+				setDiscoveredDevices(uniqueDevices);
+			}
 		} catch (error) {
 			console.error("Discovery error:", error);
 			// Show a test device for development
@@ -79,7 +115,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 				{
 					deviceId: "rack_001",
 					slotId: 1,
-					name: "IntelliRack rack_001",
+					name: "IntelliRack rack_001 (Demo)",
 					type: "IntelliRack",
 					firmwareVersion: "v2.0",
 					ipAddress: "192.168.1.100",
@@ -92,6 +128,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 					tagPresent: false,
 					currentIngredient: "",
 					discoveryTime: Date.now(),
+					isDemo: true,
 				},
 			]);
 		} finally {
@@ -155,10 +192,26 @@ const AddDeviceCard = ({ onClick, socket }) => {
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
 
-			const response = await fetch(`http://${ip}:${port}/api/discovery`, {
-				signal: controller.signal,
-				mode: "cors",
-			});
+			// Try HTTPS first (for hosted environments)
+			let response;
+			try {
+				response = await fetch(`https://${ip}:${port}/api/discovery`, {
+					signal: controller.signal,
+					mode: "cors",
+				});
+			} catch (httpsError) {
+				// If HTTPS fails, try HTTP (for local development)
+				try {
+					response = await fetch(`http://${ip}:${port}/api/discovery`, {
+						signal: controller.signal,
+						mode: "cors",
+					});
+				} catch (httpError) {
+					// Both failed
+					clearTimeout(timeoutId);
+					return null;
+				}
+			}
 
 			clearTimeout(timeoutId);
 
@@ -250,10 +303,26 @@ const AddDeviceCard = ({ onClick, socket }) => {
 		for (const ip of commonIPs) {
 			try {
 				console.log(`Trying ${ip}/api/discovery...`);
-				const response = await fetch(`http://${ip}/api/discovery`, {
-					mode: "cors",
-					signal: AbortSignal.timeout(3000),
-				});
+
+				// Try HTTPS first (for hosted environments)
+				let response;
+				try {
+					response = await fetch(`https://${ip}/api/discovery`, {
+						mode: "cors",
+						signal: AbortSignal.timeout(3000),
+					});
+				} catch (httpsError) {
+					// If HTTPS fails, try HTTP (for local development)
+					try {
+						response = await fetch(`http://${ip}/api/discovery`, {
+							mode: "cors",
+							signal: AbortSignal.timeout(3000),
+						});
+					} catch (httpError) {
+						console.log(`${ip} connection failed:`, httpError.message);
+						continue;
+					}
+				}
 
 				if (response.ok) {
 					const deviceData = await response.json();
@@ -261,7 +330,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 					devices.push({
 						...deviceData,
 						ipAddress: ip,
-						discoveredVia: "HTTP",
+						discoveredVia: response.url.startsWith("https") ? "HTTPS" : "HTTP",
 					});
 				} else {
 					console.log(`${ip} responded with status: ${response.status}`);
@@ -271,6 +340,41 @@ const AddDeviceCard = ({ onClick, socket }) => {
 			}
 		}
 
+		return devices;
+	};
+
+	const scanHTTPS = async () => {
+		const devices = [];
+		const commonHTTPSIPs = [
+			"https://intellirack.local", // Example for local network
+			"https://192.168.1.100", // Example for specific IP
+			"https://192.168.0.100",
+			"https://10.0.0.100",
+			"https://172.16.0.100",
+		];
+
+		for (const url of commonHTTPSIPs) {
+			try {
+				const response = await fetch(url, {
+					mode: "cors",
+					signal: AbortSignal.timeout(3000),
+				});
+
+				if (response.ok) {
+					const deviceData = await response.json();
+					console.log(`Found device at ${url}:`, deviceData);
+					devices.push({
+						...deviceData,
+						ipAddress: url, // Store the URL as the IP
+						discoveredVia: "HTTPS",
+					});
+				} else {
+					console.log(`${url} responded with status: ${response.status}`);
+				}
+			} catch (error) {
+				console.log(`${url} connection failed:`, error.message);
+			}
+		}
 		return devices;
 	};
 
@@ -459,6 +563,28 @@ const AddDeviceCard = ({ onClick, socket }) => {
 										<p className="text-sm text-gray-400 mt-2">
 											Scan your local network for IntelliRack devices
 										</p>
+
+										{/* Mixed Content Warning */}
+										<div className="mt-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+											<h4 className="text-yellow-400 font-medium mb-2">
+												Discovery Note
+											</h4>
+											<p className="text-sm text-gray-300 mb-3">
+												If you're accessing this app over HTTPS and no devices
+												are found, it may be due to browser security policies
+												blocking HTTP requests to local devices.
+											</p>
+											<div className="text-xs text-gray-400 space-y-1">
+												<p>
+													<strong>Solutions:</strong>
+												</p>
+												<p>• Access the app via HTTP (http://localhost:3000)</p>
+												<p>
+													• Configure your ESP32 devices with HTTPS certificates
+												</p>
+												<p>• Use the demo device below for testing</p>
+											</div>
+										</div>
 									</div>
 								)}
 
@@ -493,11 +619,18 @@ const AddDeviceCard = ({ onClick, socket }) => {
 													<div className="flex-1">
 														<div className="flex items-center gap-3 mb-2">
 															<h5 className="text-white font-medium">
-																{device.name}
+																{typeof device.name === "string"
+																	? device.name
+																	: device.deviceId || "Unknown Device"}
 															</h5>
 															<span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
 																{device.currentStatus}
 															</span>
+															{device.isDemo && (
+																<span className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">
+																	Demo
+																</span>
+															)}
 														</div>
 														<div className="grid grid-cols-2 gap-2 text-sm">
 															<div>
@@ -545,6 +678,36 @@ const AddDeviceCard = ({ onClick, socket }) => {
 								)}
 							</div>
 
+							{/* Manual Entry Option */}
+							{!isDiscovering && discoveredDevices.length === 0 && (
+								<div className="mt-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+									<h4 className="text-blue-400 font-medium mb-2">
+										Manual Device Entry
+									</h4>
+									<p className="text-sm text-gray-300 mb-3">
+										If automatic discovery doesn't work, you can manually enter
+										device details.
+									</p>
+									<button
+										onClick={() => {
+											setSelectedDevice({
+												deviceId: "manual_device",
+												slotId: 1,
+												name: "Manual Device",
+												type: "IntelliRack",
+												firmwareVersion: "v2.0",
+												ipAddress: "",
+												macAddress: "",
+												isManual: true,
+											});
+										}}
+										className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+									>
+										Enter Device Manually
+									</button>
+								</div>
+							)}
+
 							{/* Registration Form */}
 							{selectedDevice && (
 								<div className="bg-white/5 rounded-xl p-6">
@@ -586,12 +749,53 @@ const AddDeviceCard = ({ onClick, socket }) => {
 												}
 												placeholder="e.g., rack_001"
 												className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
-												readOnly
+												readOnly={!selectedDevice.isManual}
 											/>
 											<p className="text-xs text-gray-400 mt-1">
-												Auto-filled from discovered device
+												{selectedDevice.isManual
+													? "Enter the device ID manually"
+													: "Auto-filled from discovered device"}
 											</p>
 										</div>
+
+										{selectedDevice.isManual && (
+											<>
+												<div>
+													<label className="block text-sm text-gray-300 mb-2">
+														IP Address
+													</label>
+													<input
+														type="text"
+														value={selectedDevice.ipAddress}
+														onChange={(e) =>
+															setSelectedDevice((prev) => ({
+																...prev,
+																ipAddress: e.target.value,
+															}))
+														}
+														placeholder="e.g., 192.168.1.100"
+														className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+													/>
+												</div>
+												<div>
+													<label className="block text-sm text-gray-300 mb-2">
+														MAC Address (Optional)
+													</label>
+													<input
+														type="text"
+														value={selectedDevice.macAddress}
+														onChange={(e) =>
+															setSelectedDevice((prev) => ({
+																...prev,
+																macAddress: e.target.value,
+															}))
+														}
+														placeholder="e.g., AA:BB:CC:DD:EE:FF"
+														className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+													/>
+												</div>
+											</>
+										)}
 
 										<div>
 											<label className="block text-sm text-gray-300 mb-2">

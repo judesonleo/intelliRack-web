@@ -100,7 +100,9 @@ const DeviceCard = ({ device, onDeviceClick }) => {
 					{/* Device Info */}
 					<div className="text-center mb-4">
 						<h3 className="text-lg font-semibold text-black mb-1">
-							{device.name || `Device ${device.rackId}`}
+							{typeof device.name === "string"
+								? device.name
+								: `Device ${device.rackId}`}
 						</h3>
 						<p className="text-sm text-black mb-2">
 							{device.location || "No location set"}

@@ -59,7 +59,10 @@ export default function ChartsWidget({ devices, logs, liveStatus }) {
 
 	const generateDeviceHealthData = () => {
 		return devices.map((device, index) => ({
-			name: device.name,
+			name:
+				typeof device.name === "string"
+					? device.name
+					: device.rackId || "Unknown Device",
 			uptime: Math.floor(Math.random() * 100),
 			weight: device.lastWeight || 0,
 			status: device.isOnline ? "Online" : "Offline",

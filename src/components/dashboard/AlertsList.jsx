@@ -209,7 +209,14 @@ export default function AlertsList({ alerts }) {
 										"Weight exceeds maximum limit"}
 								</div>
 								<div className="flex items-center gap-4 text-xs text-gray-400">
-									<span>Device: {alert.device || "Unknown"}</span>
+									<span>
+										Device:{" "}
+										{typeof alert.device === "string"
+											? alert.device
+											: alert.device && typeof alert.device === "object"
+											? alert.device.name || alert.device.rackId || "Unknown"
+											: "Unknown"}
+									</span>
 									<span>Slot: {alert.slotId || "Unknown"}</span>
 									{alert.weight && <span>Weight: {alert.weight}g</span>}
 								</div>

@@ -38,7 +38,10 @@ export default function StatsOverview({ devices, alerts, logs, liveStatus }) {
 
 		// Calculate device health
 		const deviceHealth = devices.map((device) => ({
-			name: device.name,
+			name:
+				typeof device.name === "string"
+					? device.name
+					: device.rackId || "Unknown Device",
 			status: device.isOnline ? "Online" : "Offline",
 			weight: device.lastWeight || 0,
 			lastSeen: device.lastSeen,
@@ -223,7 +226,11 @@ export default function StatsOverview({ devices, alerts, logs, liveStatus }) {
 						<tbody>
 							{stats.deviceHealth.map((device, index) => (
 								<tr key={index} className="border-b border-white/10">
-									<td className="py-2 text-white">{device.name}</td>
+									<td className="py-2 text-white">
+										{typeof device.name === "string"
+											? device.name
+											: "Unknown Device"}
+									</td>
 									<td className="py-2">
 										<span
 											className={`px-2 py-1 rounded-full text-xs ${
