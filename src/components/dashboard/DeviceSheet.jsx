@@ -95,9 +95,9 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 			/>
 
 			{/* Modal */}
-			<div className="relative w-full max-w-4xl h-[90vh] bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl shadow-2xl overflow-hidden">
+			<div className="relative w-full max-w-4xl h-[90vh] bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
 				{/* Header */}
-				<div className="flex items-center justify-between p-6 border-b border-white/10">
+				<div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-white/10">
 					<div className="flex items-center gap-4">
 						<div className="relative w-12 h-12">
 							<Image
@@ -134,7 +134,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 				</div>
 
 				{/* Tabs */}
-				<div className="flex border-b border-white/10">
+				<div className="flex-shrink-0 flex border-b border-white/10">
 					{["overview", "configuration", "actions", "status"].map((tab) => (
 						<button
 							key={tab}
@@ -151,7 +151,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 				</div>
 
 				{/* Content */}
-				<div className="flex-1 overflow-y-auto p-6">
+				<div className="flex-1 overflow-y-auto p-6 min-h-0">
 					{activeTab === "overview" && (
 						<div className="space-y-6">
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -493,7 +493,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 
 				{/* Message */}
 				{message && (
-					<div className="p-4 bg-white/10 border-t border-white/10">
+					<div className="flex-shrink-0 p-4 bg-white/10 border-t border-white/10">
 						<p className="text-white text-center">{message}</p>
 					</div>
 				)}

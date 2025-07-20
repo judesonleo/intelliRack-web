@@ -25,6 +25,29 @@ export async function register(name, email, password) {
 	return await res.json();
 }
 
+export async function refreshUser() {
+	try {
+		const token = getToken();
+		if (!token) return null;
+
+		const res = await fetch(`${API_URL}/auth/me`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+
+		if (!res.ok) {
+			console.error("Failed to refresh user data");
+			return null;
+		}
+
+		const userData = await res.json();
+		localStorage.setItem("user", JSON.stringify(userData));
+		return userData;
+	} catch (error) {
+		console.error("Error refreshing user data:", error);
+		return null;
+	}
+}
+
 export function logout() {
 	localStorage.removeItem("token");
 	localStorage.removeItem("user");
@@ -36,9 +59,25 @@ export function getToken() {
 }
 
 export function getUser() {
-	const user = localStorage.getItem("user");
-	const email = localStorage.getItem("email");
-	return user ? { ...JSON.parse(user), email } : null;
+	try {
+		const user = localStorage.getItem("user");
+		const email = localStorage.getItem("email");
+		if (!user) return null;
+
+		const userData = JSON.parse(user);
+		// Ensure we have both _id and id fields for compatibility
+		const userWithEmail = {
+			...userData,
+			email: userData.email || email,
+			_id: userData._id || userData.id,
+			id: userData.id || userData._id,
+		};
+
+		return userWithEmail;
+	} catch (error) {
+		console.error("Error parsing user data:", error);
+		return null;
+	}
 }
 
 export function getEmail() {

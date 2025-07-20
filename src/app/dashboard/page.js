@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components";
 import { useRouter } from "next/navigation";
-import { getUser, logout } from "@/lib/auth";
+import { getUser, logout, refreshUser } from "@/lib/auth";
 import io from "socket.io-client";
 import GlassTabs from "@/components/GlassTabs";
 import {
@@ -116,8 +116,22 @@ export default function DashboardPage() {
 					router.replace("/login");
 					return;
 				}
-				const u = getUser();
-				setUser(u);
+
+				// Refresh user data to ensure we have the latest information
+				const refreshedUser = await refreshUser();
+				if (refreshedUser) {
+					setUser(refreshedUser);
+				} else {
+					// Fallback to local user data
+					const localUser = getUser();
+					if (localUser) {
+						setUser(localUser);
+					} else {
+						router.replace("/login");
+						return;
+					}
+				}
+
 				const fetchOptions = {
 					headers: {
 						Authorization: `Bearer ${token}`,
@@ -147,7 +161,7 @@ export default function DashboardPage() {
 		if (!user) return;
 
 		console.log("User object for socket auth:", user);
-		console.log("User ID:", user._id);
+		console.log("User ID:", user.id || user._id);
 
 		const socket = io(API_BASE.replace("/api", ""), {
 			transports: ["websocket"],
@@ -160,10 +174,12 @@ export default function DashboardPage() {
 		socket.on("connect", () => {
 			console.log("Connected to server");
 			// Authenticate socket with user ID
-			if (user._id) {
-				socket.emit("authenticate", { userId: user._id });
+			const userId = user.id || user._id;
+			if (userId) {
+				socket.emit("authenticate", { userId });
 			} else {
 				console.error("No user ID found in user object:", user);
+				console.error("Available user fields:", Object.keys(user));
 			}
 		});
 
@@ -309,13 +325,17 @@ export default function DashboardPage() {
 							<AlertsWidget alerts={alerts} />
 						</div>
 						<div className="col-span-1 md:col-span-2">
-							<ActivityTimeline timeline={activityTimeline} />
+							<ActivityTimeline
+								timeline={activityTimeline}
+								logs={logs}
+								devices={devices}
+							/>
 						</div>
 						<div className="col-span-1">
 							<ProfileWidget user={user} />
 						</div>
 						<div className="col-span-1">
-							<SettingsWidget />
+							<SettingsWidget user={user} />
 						</div>
 					</div>
 				)}
@@ -329,9 +349,11 @@ export default function DashboardPage() {
 				)}
 				{tab === "Logs" && <LogsList logs={logs} />}
 				{tab === "Alerts" && <AlertsList alerts={alerts} />}
-				{tab === "Charts" && <ChartsWidget />}
+				{tab === "Charts" && (
+					<ChartsWidget devices={devices} logs={logs} liveStatus={liveStatus} />
+				)}
 				{tab === "Profile" && <ProfileWidget user={user} />}
-				{tab === "Settings" && <SettingsWidget />}
+				{tab === "Settings" && <SettingsWidget user={user} />}
 			</div>
 			<DeviceSheet
 				device={selectedDevice}
