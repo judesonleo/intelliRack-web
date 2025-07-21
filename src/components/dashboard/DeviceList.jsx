@@ -4,18 +4,27 @@ import AddDeviceCard from "./AddDeviceCard";
 
 const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 	const [deviceStatus, setDeviceStatus] = useState(new Map());
-
+	const [editDevice, setEditDevice] = useState(null);
+	const [editForm, setEditForm] = useState({ name: "", location: "" });
+	const [isEditing, setIsEditing] = useState(false);
+	const [ingredientDetails, setIngredientDetails] = useState(null);
+	const API_URL =
+		process.env.NEXT_PUBLIC_API_URL ||
+		"https://intellibackend.judesonleo.me/api";
 	useEffect(() => {
 		if (!socket) return;
 
 		// Listen for device status updates
 		const handleDeviceStatus = (data) => {
+			// console.log("deviceStatus", data);
 			setDeviceStatus(
 				(prev) =>
 					new Map(
 						prev.set(data.deviceId, {
+							...prev.get(data.deviceId),
 							isOnline: data.isOnline,
 							lastSeen: data.lastSeen,
+							ingredient: data.ingredient, // always set this
 							weight: data.weight,
 							status: data.status,
 						})
@@ -25,12 +34,15 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 
 		// Listen for general updates
 		const handleUpdate = (data) => {
+			// console.log("update", data);
 			setDeviceStatus(
 				(prev) =>
 					new Map(
 						prev.set(data.deviceId, {
-							isOnline: data.isOnline || true,
-							lastSeen: data.lastSeen || new Date(),
+							...prev.get(data.deviceId),
+							isOnline: data.isOnline ?? true,
+							lastSeen: data.lastSeen ?? new Date(),
+							ingredient: data.ingredient, // always set this
 							weight: data.weight,
 							status: data.status,
 						})
@@ -47,11 +59,112 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 		};
 	}, [socket]);
 
-	// Merge device data with real-time status
+	// Fetch ingredient summary for each device
+	// useEffect(() => {
+	// 	const fetchSummaries = async () => {
+	// 		const summaries = {};
+	// 		for (const device of devices) {
+	// 			try {
+	// 				const res = await fetch(
+	// 					`${API_URL}/logs?device=${device._id}&limit=1&sort=newest`,
+	// 					{
+	// 						headers: {
+	// 							Authorization: `Bearer ${localStorage.getItem("token")}`,
+	// 						},
+	// 					}
+	// 				);
+	// 				if (res.ok) {
+	// 					const logs = await res.json();
+	// 					if (logs.length > 0) {
+	// 						const log = logs[0];
+	// 						summaries[
+	// 							device._id
+	// 						] = `${log.ingredient}: ${log.status} (${log.weight}g)`;
+	// 						device.ingredient = log.ingredient;
+	// 					} else {
+	// 						summaries[device._id] = "No data";
+	// 					}
+	// 				}
+	// 			} catch {
+	// 				summaries[device._id] = "No data";
+	// 			}
+	// 		}
+	// 		setIngredientSummaries(summaries);
+	// 	};
+	// 	if (devices.length > 0) fetchSummaries();
+	// }, [devices]);
+
+	// Mock alertTypes and ingredientSummary for each device (replace with real fetch)
+	const getAlertTypes = (device) => {
+		// TODO: Fetch from backend
+		return device.lastStatus === "LOW" || device.lastStatus === "EMPTY"
+			? [device.lastStatus]
+			: [];
+	};
+	const getIngredientSummary = (device) => {
+		// TODO: Fetch from backend
+		return device.lastStatus && device.lastWeight
+			? `${device.lastStatus} (${device.lastWeight.toFixed(1)}g)`
+			: null;
+	};
+
+	const handleEdit = (device) => {
+		setEditDevice(device);
+		setEditForm({ name: device.name || "", location: device.location || "" });
+		setIsEditing(true);
+	};
+
+	const handleEditSubmit = async (e) => {
+		e.preventDefault();
+		try {
+			const res = await fetch(`${API_URL}/devices/${editDevice.rackId}`, {
+				method: "PATCH",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${localStorage.getItem("token")}`,
+				},
+				body: JSON.stringify(editForm),
+			});
+			if (res.ok) {
+				// Optionally refetch devices or update state
+				setIsEditing(false);
+				window.location.reload(); // For demo, reload; in real app, update state
+			} else {
+				alert("Failed to update device");
+			}
+		} catch {
+			alert("Error updating device");
+		}
+	};
+
+	const handleDelete = async (device) => {
+		try {
+			const res = await fetch(`${API_URL}/devices/${device.rackId}`, {
+				method: "DELETE",
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem("token")}`,
+				},
+			});
+			if (res.ok) {
+				window.location.reload(); // For demo, reload; in real app, update state
+			} else {
+				alert("Failed to delete device");
+			}
+		} catch {
+			alert("Error deleting device");
+		}
+	};
+
+	const handleViewDetails = (device) => {
+		onDeviceClick(device);
+	};
+
+	// Merge device data with real-time status (per-slot)
 	const devicesWithStatus = devices.map((device) => {
 		const status = deviceStatus.get(device.rackId);
 		return {
 			...device,
+			ingredient: status?.ingredient ?? device.ingredient,
 			isOnline: status?.isOnline ?? device.isOnline,
 			lastSeen: status?.lastSeen ?? device.lastSeen,
 			lastWeight: status?.weight ?? device.lastWeight,
@@ -64,7 +177,7 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 			<h3 className="text-lg font-semibold mb-2 text-[var(--primary)]">
 				Your Devices
 			</h3>
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-6">
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 p-6 	w-full">
 				{/* Add Device Card - Always First */}
 
 				{/* Device Cards */}
@@ -72,7 +185,12 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 					<DeviceCard
 						key={device._id}
 						device={device}
-						onDeviceClick={onDeviceClick}
+						onDeviceClick={handleViewDetails}
+						onEdit={handleEdit}
+						onDelete={handleDelete}
+						onViewDetails={handleViewDetails}
+						alertTypes={getAlertTypes(device)}
+						ingredientDetails={ingredientDetails}
 					/>
 				))}
 				<AddDeviceCard onClick={onAddDevice} socket={socket} />
@@ -112,6 +230,56 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 					</div>
 				)}
 			</div>
+
+			{/* Edit Device Modal */}
+			{isEditing && (
+				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+					<div className="bg-white rounded-xl p-8 w-full max-w-md shadow-xl">
+						<h3 className="text-lg font-semibold mb-4">Edit Device</h3>
+						<form onSubmit={handleEditSubmit} className="space-y-4">
+							<div>
+								<label className="block text-sm font-medium mb-1">Name</label>
+								<input
+									type="text"
+									value={editForm.name}
+									onChange={(e) =>
+										setEditForm((f) => ({ ...f, name: e.target.value }))
+									}
+									className="w-full px-3 py-2 border rounded-lg"
+								/>
+							</div>
+							<div>
+								<label className="block text-sm font-medium mb-1">
+									Location
+								</label>
+								<input
+									type="text"
+									value={editForm.location}
+									onChange={(e) =>
+										setEditForm((f) => ({ ...f, location: e.target.value }))
+									}
+									className="w-full px-3 py-2 border rounded-lg"
+								/>
+							</div>
+							<div className="flex gap-2 justify-end">
+								<button
+									type="button"
+									onClick={() => setIsEditing(false)}
+									className="px-4 py-2 bg-gray-200 rounded-lg"
+								>
+									Cancel
+								</button>
+								<button
+									type="submit"
+									className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
+								>
+									Save
+								</button>
+							</div>
+						</form>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 };

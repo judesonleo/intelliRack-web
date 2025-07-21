@@ -87,7 +87,7 @@ export default function NFCTagManager({ devices }) {
 
 	const fetchTags = async () => {
 		try {
-			const response = await fetch("/api/nfc", {
+			const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/nfc`, {
 				headers: {
 					Authorization: `Bearer ${localStorage.getItem("token")}`,
 				},

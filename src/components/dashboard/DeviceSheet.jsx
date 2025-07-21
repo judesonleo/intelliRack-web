@@ -50,6 +50,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 		if (device && device.weightThresholds) {
 			setConfig({
 				weightThresholds: device.weightThresholds,
+				ingredient: device.ingredient,
 				settings: device.settings || {
 					ledEnabled: true,
 					soundEnabled: false,

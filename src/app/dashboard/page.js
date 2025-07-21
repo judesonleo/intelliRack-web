@@ -34,19 +34,17 @@ import SettingsWidget from "@/components/dashboard/SettingsWidget";
 import LogsList from "@/components/dashboard/LogsList";
 import AlertsList from "@/components/dashboard/AlertsList";
 import ChartsWidget from "@/components/dashboard/ChartsWidget";
+import GradientCard from "@/components/GradientCard";
+import StatusDot from "@/components/StatusDot";
+import CloseButton from "@/components/CloseButton";
+import { AreaChart, Area } from "recharts";
+import IngredientsTab from "@/components/dashboard/IngredientsTab";
+import DashboardOverview from "@/components/dashboard/DashboardOverview";
 
 const API_BASE =
 	process.env.NEXT_PUBLIC_API_URL || "https://intellibackend.judesonleo.me/api";
 
-const TABS = [
-	"Dashboard",
-	"Devices",
-	"Logs",
-	"Alerts",
-	"Charts",
-	"Profile",
-	"Settings",
-];
+const TABS = ["Dashboard", "Devices", "Ingredients", "Alerts", "Settings"];
 
 // Placeholder data for charts
 const ingredientPieData = [
@@ -89,6 +87,9 @@ export default function DashboardPage() {
 	const [selectedDevice, setSelectedDevice] = useState(null);
 	const router = useRouter();
 	const socketRef = useRef(null);
+	const [ingredients, setIngredients] = useState([]); // [{ name, status, weight, lastUpdated, daysLeft, usageData, ... }]
+	const [ingredientDetails, setIngredientDetails] = useState(null); // { name, logs, prediction, usage, anomalies, substitutions, recommendations }
+	const [ingredientModalOpen, setIngredientModalOpen] = useState(false);
 
 	const fetchDevices = async () => {
 		try {
@@ -260,6 +261,137 @@ export default function DashboardPage() {
 		return () => socket.disconnect();
 	}, [user]);
 
+	// Fetch unique ingredients and their summaries
+	useEffect(() => {
+		if (tab !== "Ingredients") return;
+		const fetchIngredients = async () => {
+			const token = localStorage.getItem("token");
+			const uniqueRes = await fetch(`${API_BASE}/ingredients/unique`, {
+				headers: { Authorization: `Bearer ${token}` },
+			});
+			if (!uniqueRes.ok) return;
+			const uniqueIngredients = await uniqueRes.json();
+			const ingredientCards = await Promise.all(
+				uniqueIngredients.map(async (name) => {
+					// Fetch latest log
+					const logRes = await fetch(
+						`${API_BASE}/ingredients/logs/${encodeURIComponent(name)}`,
+						{
+							headers: { Authorization: `Bearer ${token}` },
+						}
+					);
+					const logs = logRes.ok ? await logRes.json() : [];
+					const latest = logs[0] || {};
+					// Fetch prediction
+					const predRes = await fetch(
+						`${API_BASE}/ingredients/prediction/${encodeURIComponent(name)}`,
+						{
+							headers: { Authorization: `Bearer ${token}` },
+						}
+					);
+					const prediction = predRes.ok ? await predRes.json() : {};
+					// Fetch usage
+					const usageRes = await fetch(
+						`${API_BASE}/ingredients/usage/${encodeURIComponent(name)}`,
+						{
+							headers: { Authorization: `Bearer ${token}` },
+						}
+					);
+					const usage = usageRes.ok ? await usageRes.json() : [];
+					return {
+						name,
+						status: latest.status,
+						weight: latest.weight,
+						lastUpdated: latest.timestamp,
+						daysLeft: prediction.prediction,
+						usageData: usage,
+						logs,
+						prediction,
+					};
+				})
+			);
+			setIngredients(ingredientCards);
+		};
+		fetchIngredients();
+	}, [tab]);
+
+	const openIngredientDetails = async (ingredient) => {
+		const token = localStorage.getItem("token");
+		const [
+			logsRes,
+			predRes,
+			usageRes,
+			anomaliesRes,
+			subsRes,
+			recsRes,
+			patternRes,
+		] = await Promise.all([
+			fetch(
+				`${API_BASE}/ingredients/logs/${encodeURIComponent(ingredient.name)}`,
+				{ headers: { Authorization: `Bearer ${token}` } }
+			),
+			fetch(
+				`${API_BASE}/ingredients/prediction/${encodeURIComponent(
+					ingredient.name
+				)}`,
+				{ headers: { Authorization: `Bearer ${token}` } }
+			),
+			fetch(
+				`${API_BASE}/ingredients/usage/${encodeURIComponent(ingredient.name)}`,
+				{ headers: { Authorization: `Bearer ${token}` } }
+			),
+			fetch(
+				`${API_BASE}/ingredients/anomalies/${encodeURIComponent(
+					ingredient.name
+				)}`,
+				{ headers: { Authorization: `Bearer ${token}` } }
+			),
+			fetch(
+				`${API_BASE}/ingredients/substitutions/${encodeURIComponent(
+					ingredient.name
+				)}`,
+				{ headers: { Authorization: `Bearer ${token}` } }
+			),
+			fetch(`${API_BASE}/ingredients/recommendations`, {
+				headers: { Authorization: `Bearer ${token}` },
+			}),
+			fetch(
+				`${API_BASE}/ingredients/usage-pattern/${encodeURIComponent(
+					ingredient.name
+				)}`,
+				{ headers: { Authorization: `Bearer ${token}` } }
+			),
+		]);
+		const [
+			logs,
+			prediction,
+			usage,
+			anomalies,
+			substitutions,
+			recommendations,
+			usagePattern,
+		] = await Promise.all([
+			logsRes.ok ? logsRes.json() : [],
+			predRes.ok ? predRes.json() : {},
+			usageRes.ok ? usageRes.json() : [],
+			anomaliesRes.ok ? anomaliesRes.json() : [],
+			subsRes.ok ? subsRes.json() : [],
+			recsRes.ok ? recsRes.json() : [],
+			patternRes.ok ? patternRes.json() : {},
+		]);
+		setIngredientDetails({
+			name: ingredient.name,
+			logs,
+			prediction,
+			usage,
+			anomalies,
+			substitutions,
+			recommendations,
+			usagePattern,
+		});
+		setIngredientModalOpen(true);
+	};
+
 	function handleSignOut() {
 		logout();
 		router.replace("/login");
@@ -267,6 +399,10 @@ export default function DashboardPage() {
 
 	const handleAddDevice = () => {
 		fetchDevices(); // Refresh devices after adding
+		setTab("Devices");
+	};
+	const handleAddIngredient = () => {
+		alert("Add Ingredient modal coming soon!");
 	};
 
 	if (loading)
@@ -312,7 +448,7 @@ export default function DashboardPage() {
 				</div>
 			</div>
 			<div className="w-full max-w-6xl mx-auto">
-				{tab === "Dashboard" && (
+				{/* {tab === "Dashboard" && (
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fadein">
 						<div className="col-span-1 md:col-span-2">
 							<StatsOverview
@@ -342,23 +478,268 @@ export default function DashboardPage() {
 							<SettingsWidget user={user} />
 						</div>
 					</div>
+				)} */}
+				{tab === "Dashboard" && (
+					<DashboardOverview
+						onAddDevice={handleAddDevice}
+						onAddIngredient={handleAddIngredient}
+					/>
 				)}
+
 				{tab === "Devices" && (
 					<DeviceList
 						devices={devices}
 						onDeviceClick={setSelectedDevice}
 						onAddDevice={handleAddDevice}
 						socket={socketRef.current}
+						liveStatus={liveStatus}
+						ingredientDetails={ingredientDetails}
 					/>
 				)}
-				{tab === "Logs" && <LogsList logs={logs} />}
-				{tab === "Alerts" && <AlertsList alerts={alerts} />}
-				{tab === "Charts" && (
-					<ChartsWidget devices={devices} logs={logs} liveStatus={liveStatus} />
+				{tab === "Ingredients" && <IngredientsTab />}
+				{tab === "Logs" && (
+					<div className="text-center text-gray-500">
+						Logs are now shown in the Ingredients tab.
+					</div>
 				)}
-				{tab === "Profile" && <ProfileWidget user={user} />}
+				{tab === "Alerts" && <AlertsList alerts={alerts} />}
+				{tab === "Charts" && null}
+				{tab === "Profile" && null}
 				{tab === "Settings" && <SettingsWidget user={user} />}
 			</div>
+			{/* Ingredient Details Modal/Sheet */}
+			{ingredientModalOpen && ingredientDetails && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-lg border-2 border-white/30 shadow-2xl"
+					onClick={() => setIngredientModalOpen(false)}
+				>
+					<div
+						className="relative bg-white/30 dark:bg-zinc-900/60 backdrop-blur-2xl rounded-2xl border-2 border-white/30 shadow-2xl w-full max-w-4xl p-8 overflow-y-auto max-h-[90vh] animate-fadein"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<CloseButton onClick={() => setIngredientModalOpen(false)} />
+						<div className="flex items-center gap-2 mb-4">
+							<StatusDot status={ingredientDetails.logs[0]?.status} />
+							<h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+								{ingredientDetails.name} Details
+							</h2>
+						</div>
+						<div className="mb-4 grid grid-cols-2 gap-4">
+							<div>
+								<div className="text-gray-700 mb-1">
+									<span className="font-semibold">
+										{ingredientDetails.logs[0]?.status || "-"}
+									</span>
+									<span className="text-xs text-gray-400 ml-2">Status</span>
+								</div>
+								<div className="text-gray-700 mb-1">
+									<span className="font-semibold">
+										{ingredientDetails.logs[0]?.weight || "-"}g
+									</span>
+									<span className="text-xs text-gray-400 ml-2">Weight</span>
+								</div>
+								<div className="text-gray-700 mb-1">
+									<span className="font-semibold">
+										{ingredientDetails.prediction?.prediction ?? "-"}
+									</span>
+									<span className="text-xs text-gray-400 ml-2">Days Left</span>
+								</div>
+							</div>
+							<div className="text-xs text-gray-500 text-right">
+								Last updated:{" "}
+								{ingredientDetails.logs[0]?.timestamp
+									? new Date(
+											ingredientDetails.logs[0]?.timestamp
+									  ).toLocaleString()
+									: "-"}
+							</div>
+						</div>
+						<div className="mb-6">
+							<h3 className="font-semibold mb-2 flex items-center gap-2">
+								<svg
+									className="w-5 h-5 text-indigo-500"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M12 8v4l3 3"
+									/>
+								</svg>
+								Log History
+							</h3>
+							<div className="max-h-48 overflow-y-auto px-2">
+								<ul className="relative border-l-2 border-indigo-200">
+									{ingredientDetails.logs.map((log, idx) => (
+										<li key={log._id} className="mb-6 ml-4 relative">
+											<div className="absolute -left-2 top-1.5">
+												<StatusDot status={log.status} />
+											</div>
+											<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-3 flex flex-col md:flex-row md:items-center gap-2">
+												<div className="flex-1">
+													<div className="font-semibold text-sm text-indigo-700">
+														{log.timestamp
+															? new Date(log.timestamp).toLocaleString()
+															: "-"}
+													</div>
+													<div className="text-xs text-gray-500">
+														{log.device?.name || log.device?.rackId || "-"}
+													</div>
+												</div>
+												<div className="flex items-center gap-3">
+													<span className="text-sm font-bold text-gray-700 flex items-center gap-1">
+														<svg
+															className="w-4 h-4 text-blue-400"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																strokeLinecap="round"
+																strokeLinejoin="round"
+																strokeWidth={2}
+																d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6"
+															/>
+														</svg>
+														{log.weight}g
+													</span>
+													<span className="text-xs font-medium px-2 py-1 rounded-full bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200 text-indigo-700">
+														{log.status}
+													</span>
+												</div>
+											</div>
+										</li>
+									))}
+								</ul>
+							</div>
+						</div>
+						<div className="mb-6">
+							<h3 className="font-semibold mb-2 flex items-center gap-2">
+								<svg
+									className="w-5 h-5 text-pink-500"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M9 17v-2a4 4 0 018 0v2"
+									/>
+								</svg>
+								Usage Patterns
+							</h3>
+							{ingredientDetails.usagePattern && (
+								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+									<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-4 flex flex-col items-center">
+										<span className="text-xs text-gray-500 mb-1">
+											Avg Daily Usage
+										</span>
+										<span className="text-2xl font-bold text-indigo-600">
+											{ingredientDetails.usagePattern.avgDaily?.toFixed(1) || 0}
+											g
+										</span>
+									</div>
+									<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-4">
+										<span className="text-xs text-gray-500 mb-1 block">
+											Per Day (7d)
+										</span>
+										<div className="flex flex-wrap gap-2">
+											{ingredientDetails.usagePattern.perDay?.map((d) => (
+												<span
+													key={d.date}
+													className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium"
+												>
+													{d.date}: {d.used}g
+												</span>
+											))}
+										</div>
+									</div>
+									<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-4">
+										<span className="text-xs text-gray-500 mb-1 block">
+											Per Week (4w)
+										</span>
+										<div className="flex flex-wrap gap-2">
+											{ingredientDetails.usagePattern.perWeek?.map((w) => (
+												<span
+													key={w.week}
+													className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-medium"
+												>
+													{w.week}: {w.used}g
+												</span>
+											))}
+										</div>
+									</div>
+									<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-4 col-span-1 md:col-span-3">
+										<span className="text-xs text-gray-500 mb-1 block">
+											Per Month (12m)
+										</span>
+										<div className="flex flex-wrap gap-2">
+											{ingredientDetails.usagePattern.perMonth?.map((m) => (
+												<span
+													key={m.month}
+													className="px-2 py-1 rounded-full bg-pink-100 text-pink-700 text-xs font-medium"
+												>
+													{m.month}: {m.used}g
+												</span>
+											))}
+										</div>
+									</div>
+								</div>
+							)}
+						</div>
+						<div className="mb-6">
+							<h3 className="font-semibold mb-2">Anomalies</h3>
+							{ingredientDetails.anomalies &&
+							ingredientDetails.anomalies.length > 0 ? (
+								<ul className="list-disc pl-5 text-xs">
+									{ingredientDetails.anomalies.map((a) => (
+										<li key={a._id}>
+											{a.timestamp
+												? new Date(a.timestamp).toLocaleString()
+												: "-"}{" "}
+											- <StatusDot status={a.status} />
+											{a.status} ({a.weight}g)
+										</li>
+									))}
+								</ul>
+							) : (
+								<div className="text-gray-400">No anomalies detected</div>
+							)}
+						</div>
+						<div className="mb-6">
+							<h3 className="font-semibold mb-2">Substitutions</h3>
+							{ingredientDetails.substitutions &&
+							ingredientDetails.substitutions.length > 0 ? (
+								<ul className="list-disc pl-5 text-xs">
+									{ingredientDetails.substitutions.map((s, i) => (
+										<li key={i}>{s}</li>
+									))}
+								</ul>
+							) : (
+								<div className="text-gray-400">No substitutions found</div>
+							)}
+						</div>
+						<div className="mb-6">
+							<h3 className="font-semibold mb-2">Recommendations</h3>
+							{ingredientDetails.recommendations &&
+							ingredientDetails.recommendations.length > 0 ? (
+								<ul className="list-disc pl-5 text-xs">
+									{ingredientDetails.recommendations.map((r, i) => (
+										<li key={i}>{r}</li>
+									))}
+								</ul>
+							) : (
+								<div className="text-gray-400">No recommendations</div>
+							)}
+						</div>
+					</div>
+				</div>
+			)}
 			<DeviceSheet
 				device={selectedDevice}
 				isOpen={!!selectedDevice}
