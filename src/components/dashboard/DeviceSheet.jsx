@@ -13,6 +13,7 @@ import {
 	Search,
 	Settings,
 } from "lucide-react";
+import CloseButton from "@/components/CloseButton";
 
 const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 	const [activeTab, setActiveTab] = useState("overview");
@@ -75,42 +76,35 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 
 		const handleNfcEvent = (data) => {
 			if (data.deviceId === device?.rackId) {
-				switch (data.type) {
-					case "read":
-						setNfcStatus({
-							tagPresent: true,
-							tagUID: data.tagUID,
-							ingredient: data.ingredient,
-							nfcEnabled: true,
-						});
-						setMessageWithTimeout(
+				if (data.type === "read") {
+					setNfcStatus({
+						tagPresent: true,
+						tagUID: data.tagUID,
+						ingredient: data.ingredient,
+						nfcEnabled: true,
+					});
+					setMessageWithTimeout(
+						data.response ||
 							`NFC Tag Read: ${data.ingredient || "Unknown"} (UID: ${
 								data.tagUID
 							})`
-						);
-						break;
-					case "removed":
-						setNfcStatus({
-							tagPresent: false,
-							tagUID: "",
-							ingredient: "",
-							nfcEnabled: true,
-						});
-						setMessageWithTimeout("NFC Tag Removed");
-						break;
-					case "write":
-						setMessageWithTimeout(`NFC Write: ${data.response || "Success"}`);
-						// Refresh NFC tags after write operation
-						fetchNfcTags();
-						break;
-					case "clear":
-						setMessageWithTimeout(`NFC Clear: ${data.response || "Success"}`);
-						// Refresh NFC tags after clear operation
-						fetchNfcTags();
-						break;
-					case "format":
-						setMessageWithTimeout(`NFC Format: ${data.response || "Success"}`);
-						break;
+					);
+				} else if (data.type === "removed") {
+					setNfcStatus({
+						tagPresent: false,
+						tagUID: "",
+						ingredient: "",
+						nfcEnabled: true,
+					});
+					setMessageWithTimeout("NFC Tag Removed");
+				} else if (data.type === "write") {
+					setMessageWithTimeout(data.response || "NFC Write: Success");
+					fetchNfcTags();
+				} else if (data.type === "clear") {
+					setMessageWithTimeout(data.response || "NFC Clear: Success");
+					fetchNfcTags();
+				} else if (data.type === "format") {
+					setMessageWithTimeout(data.response || "NFC Format: Success");
 				}
 			}
 		};
@@ -299,18 +293,18 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 	if (!isOpen || !device) return null;
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-			{/* Backdrop */}
+		<div
+			className="fixed inset-0 z-50 flex items-center justify-center"
+			onClick={onClose}
+		>
+			<div className="absolute inset-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg" />
 			<div
-				className="absolute inset-0 bg-black/50 backdrop-blur-lg"
-				onClick={onClose}
-			/>
-
-			{/* Modal */}
-			<div className="relative w-full max-w-4xl h-[90vh] bg-white/10 backdrop-blur-lg border border-white/20 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
-				{/* Header */}
-				<div className="flex-shrink-0 flex items-center justify-between p-6 border-b border-white/10">
-					<div className="flex items-center gap-4">
+				className="relative bg-white/30 dark:bg-zinc-900/60 backdrop-blur-2xl rounded-2xl border-2 border-white/30 shadow-2xl w-full max-w-4xl p-8 overflow-y-auto max-h-[90vh] animate-fadein flex flex-col"
+				onClick={(e) => e.stopPropagation()}
+			>
+				<CloseButton onClick={onClose} />
+				<div className="flex justify-between items-center mb-4">
+					<div className="flex items-center gap-2">
 						<div className="relative w-12 h-12">
 							<Image
 								src={slot}
@@ -320,46 +314,23 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 								className="object-contain"
 							/>
 						</div>
-						<div>
-							<h2 className="text-2xl font-bold text-white">
-								{typeof device.name === "string"
-									? device.name
-									: device.rackId || "Unknown Device"}
-							</h2>
-							<p className="text-gray-300">Rack ID: {device.rackId}</p>
-						</div>
+						<h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+							{typeof device.name === "string"
+								? device.name
+								: device.rackId || "Unknown Device"}
+						</h2>
 					</div>
-					<button
-						onClick={onClose}
-						className="p-2 rounded-full hover:bg-white/10 transition-colors"
-					>
-						<svg
-							className="w-6 h-6 text-white"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={2}
-								d="M6 18L18 6M6 6l12 12"
-							/>
-						</svg>
-					</button>
 				</div>
-
-				{/* Tabs */}
-				<div className="flex-shrink-0 flex border-b border-white/10">
+				<div className="flex border-b border-white/10 mb-6">
 					{["overview", "configuration", "actions", "nfc", "status"].map(
 						(tab) => (
 							<button
 								key={tab}
 								onClick={() => setActiveTab(tab)}
-								className={`px-6 py-3 text-sm font-medium transition-colors ${
+								className={`px-6 py-3 text-sm font-medium rounded-t-xl transition-colors ${
 									activeTab === tab
-										? "text-white border-b-2 border-indigo-500"
-										: "text-gray-400 hover:text-white"
+										? "bg-white/40 text-indigo-700 font-bold"
+										: "text-zinc-700 dark:text-zinc-200 hover:text-indigo-700"
 								}`}
 							>
 								{tab === "nfc"
@@ -369,44 +340,44 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 						)
 					)}
 				</div>
-
-				{/* Content */}
-				<div className="flex-1 overflow-y-auto p-6 min-h-0">
+				<div className="overflow-y-auto min-h-0 flex-1">
 					{activeTab === "overview" && (
 						<div className="space-y-6">
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-								<div className="bg-white/5 rounded-xl p-6">
-									<h3 className="text-lg font-semibold text-white mb-4">
+								<div className="bg-white/5 rounded-2xl p-6 border border-white/70 dark:border-zinc-700 shadow-lg ">
+									<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 										Current Status
 									</h3>
 									<div className="space-y-3">
 										<div className="flex justify-between">
-											<span className="text-gray-300">Status:</span>
+											<span className="text-zinc-600">Status:</span>
 											<span
 												className={`font-medium ${
-													device.isOnline ? "text-green-400" : "text-red-400"
+													device.isOnline
+														? "text-green-600 dark:text-green-400"
+														: "text-red-600 dark:text-red-400"
 												}`}
 											>
 												{device.isOnline ? "Online" : "Offline"}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-gray-300">Weight:</span>
-											<span className="text-white font-medium">
+											<span className="text-zinc-600">Weight:</span>
+											<span className="text-zinc-900 dark:text-white font-medium">
 												{device.lastWeight
 													? `${device.lastWeight.toFixed(1)}g`
 													: "--"}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-gray-300">Stock Level:</span>
-											<span className="text-white font-medium">
+											<span className="text-zinc-600">Stock Level:</span>
+											<span className="text-zinc-900 dark:text-white font-medium">
 												{device.lastStatus || "UNKNOWN"}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-gray-300">Last Seen:</span>
-											<span className="text-white font-medium">
+											<span className="text-zinc-600">Last Seen:</span>
+											<span className="text-zinc-900 dark:text-white font-medium">
 												{device.lastSeen
 													? new Date(device.lastSeen).toLocaleString()
 													: "Never"}
@@ -415,55 +386,57 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 									</div>
 								</div>
 
-								<div className="bg-white/5 rounded-xl p-6">
-									<h3 className="text-lg font-semibold text-white mb-4">
+								<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+									<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 										Device Info
 									</h3>
 									<div className="space-y-3">
 										<div className="flex justify-between">
-											<span className="text-gray-300">Location:</span>
-											<span className="text-white">
+											<span className="text-zinc-600">Location:</span>
+											<span className="text-zinc-900 dark:text-white">
 												{device.location || "Not set"}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-gray-300">IP Address:</span>
-											<span className="text-white">
+											<span className="text-zinc-600">IP Address:</span>
+											<span className="text-zinc-900 dark:text-white">
 												{device.ipAddress || "Unknown"}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-gray-300">Firmware:</span>
-											<span className="text-white">
+											<span className="text-zinc-600">Firmware:</span>
+											<span className="text-zinc-900 dark:text-white">
 												{device.firmwareVersion || "v2.0"}
 											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-gray-300">Created:</span>
-											<span className="text-white">
+											<span className="text-zinc-600">Created:</span>
+											<span className="text-zinc-900 dark:text-white">
 												{new Date(device.createdAt).toLocaleDateString()}
 											</span>
 										</div>
 									</div>
 								</div>
 
-								<div className="bg-white/5 rounded-xl p-6">
-									<h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+								<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+									<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
 										<Tag className="w-5 h-5" />
 										NFC Status
 									</h3>
 									<div className="space-y-3">
 										<div className="flex justify-between">
-											<span className="text-gray-300">NFC Enabled:</span>
-											<span className="text-green-400 font-medium">Yes</span>
+											<span className="text-zinc-600">NFC Enabled:</span>
+											<span className="text-green-600 dark:text-green-400 font-medium">
+												Yes
+											</span>
 										</div>
 										<div className="flex justify-between">
-											<span className="text-gray-300">Tag Present:</span>
+											<span className="text-zinc-600">Tag Present:</span>
 											<span
 												className={`font-medium ${
 													nfcStatus.tagPresent
-														? "text-green-400"
-														: "text-red-400"
+														? "text-green-600 dark:text-green-400"
+														: "text-red-600 dark:text-red-400"
 												}`}
 											>
 												{nfcStatus.tagPresent ? "Yes" : "No"}
@@ -472,16 +445,16 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 										{nfcStatus.tagPresent && (
 											<>
 												<div className="flex justify-between">
-													<span className="text-gray-300">Ingredient:</span>
-													<span className="text-white font-medium">
+													<span className="text-zinc-600">Ingredient:</span>
+													<span className="text-zinc-900 dark:text-white font-medium">
 														{nfcStatus.ingredient || "Unknown"}
 													</span>
 												</div>
 												<div className="flex justify-between">
-													<span className="text-gray-300">
+													<span className="text-zinc-600">
 														Registered Tags:
 													</span>
-													<span className="text-white font-medium">
+													<span className="text-zinc-900 dark:text-white font-medium">
 														{nfcTags.length}
 													</span>
 												</div>
@@ -496,15 +469,15 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 					{activeTab === "configuration" && (
 						<div className="space-y-6">
 							{/* Weight Thresholds */}
-							<div className="bg-white/5 rounded-xl p-6">
-								<h3 className="text-lg font-semibold text-white mb-4">
+							<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+								<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 									Weight Thresholds (g)
 								</h3>
 								<div className="grid grid-cols-2 md:grid-cols-5 gap-4">
 									{Object.entries(config.weightThresholds).map(
 										([key, value]) => (
 											<div key={key}>
-												<label className="block text-sm text-gray-300 mb-2 capitalize">
+												<label className="block text-sm text-zinc-600 mb-2 capitalize">
 													{key.replace(/([A-Z])/g, " $1").trim()}
 												</label>
 												<input
@@ -519,7 +492,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 															},
 														}))
 													}
-													className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+													className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:outline-none focus:border-indigo-500"
 												/>
 											</div>
 										)
@@ -535,13 +508,13 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 							</div>
 
 							{/* Device Settings */}
-							<div className="bg-white/5 rounded-xl p-6">
-								<h3 className="text-lg font-semibold text-white mb-4">
+							<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+								<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 									Device Settings
 								</h3>
 								<div className="space-y-4">
 									<div className="flex items-center justify-between">
-										<span className="text-gray-300">LED Strip</span>
+										<span className="text-zinc-600">LED Strip</span>
 										<label className="relative inline-flex items-center cursor-pointer">
 											<input
 												type="checkbox"
@@ -562,7 +535,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 									</div>
 
 									<div className="flex items-center justify-between">
-										<span className="text-gray-300">Sound Alerts</span>
+										<span className="text-zinc-600">Sound Alerts</span>
 										<label className="relative inline-flex items-center cursor-pointer">
 											<input
 												type="checkbox"
@@ -583,7 +556,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 									</div>
 
 									<div className="flex items-center justify-between">
-										<span className="text-gray-300">Auto Tare</span>
+										<span className="text-zinc-600">Auto Tare</span>
 										<label className="relative inline-flex items-center cursor-pointer">
 											<input
 												type="checkbox"
@@ -604,7 +577,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 									</div>
 
 									<div>
-										<label className="block text-sm text-gray-300 mb-2">
+										<label className="block text-sm text-zinc-600 mb-2">
 											MQTT Publish Interval (ms)
 										</label>
 										<input
@@ -619,7 +592,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 													},
 												}))
 											}
-											className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+											className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:outline-none focus:border-indigo-500"
 										/>
 									</div>
 								</div>
@@ -633,12 +606,12 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 							</div>
 
 							{/* Calibration */}
-							<div className="bg-white/5 rounded-xl p-6">
-								<h3 className="text-lg font-semibold text-white mb-4">
+							<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+								<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 									Calibration
 								</h3>
 								<div>
-									<label className="block text-sm text-gray-300 mb-2">
+									<label className="block text-sm text-zinc-600 mb-2">
 										Calibration Factor
 									</label>
 									<input
@@ -651,7 +624,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 												calibrationFactor: parseFloat(e.target.value),
 											}))
 										}
-										className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+										className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:outline-none focus:border-indigo-500"
 									/>
 								</div>
 								<button
@@ -668,8 +641,8 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 					{activeTab === "actions" && (
 						<div className="space-y-6">
 							<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-								<div className="bg-white/5 rounded-xl p-6">
-									<h3 className="text-lg font-semibold text-white mb-4">
+								<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+									<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 										Scale Actions
 									</h3>
 									<div className="space-y-3">
@@ -690,8 +663,8 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 									</div>
 								</div>
 
-								<div className="bg-white/5 rounded-xl p-6">
-									<h3 className="text-lg font-semibold text-white mb-4">
+								<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+									<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 										System Actions
 									</h3>
 									<div className="space-y-3">
@@ -718,21 +691,25 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 					{activeTab === "nfc" && (
 						<div className="space-y-6">
 							{/* NFC Status */}
-							<div className="bg-white/5 rounded-xl p-6">
-								<h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+							<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+								<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
 									<Tag className="w-5 h-5" />
 									NFC Status
 								</h3>
 								<div className="space-y-3">
 									<div className="flex justify-between">
-										<span className="text-gray-300">NFC Enabled:</span>
-										<span className="text-green-400 font-medium">Yes</span>
+										<span className="text-zinc-600">NFC Enabled:</span>
+										<span className="text-green-600 dark:text-green-400 font-medium">
+											Yes
+										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-gray-300">Tag Present:</span>
+										<span className="text-zinc-600">Tag Present:</span>
 										<span
 											className={`font-medium ${
-												nfcStatus.tagPresent ? "text-green-400" : "text-red-400"
+												nfcStatus.tagPresent
+													? "text-green-600 dark:text-green-400"
+													: "text-red-600 dark:text-red-400"
 											}`}
 										>
 											{nfcStatus.tagPresent ? "Yes" : "No"}
@@ -741,14 +718,14 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 									{nfcStatus.tagPresent && (
 										<>
 											<div className="flex justify-between">
-												<span className="text-gray-300">Tag UID:</span>
+												<span className="text-zinc-600">Tag UID:</span>
 												<span className="text-white font-mono text-sm">
 													{nfcStatus.tagUID}
 												</span>
 											</div>
 											<div className="flex justify-between">
-												<span className="text-gray-300">Ingredient:</span>
-												<span className="text-white font-medium">
+												<span className="text-zinc-600">Ingredient:</span>
+												<span className="text-zinc-900 dark:text-white font-medium">
 													{nfcStatus.ingredient || "Unknown"}
 												</span>
 											</div>
@@ -758,8 +735,8 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 							</div>
 
 							{/* NFC Actions */}
-							<div className="bg-white/5 rounded-xl p-6">
-								<h3 className="text-lg font-semibold text-white mb-4">
+							<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+								<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 									NFC Actions
 								</h3>
 								<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -799,9 +776,9 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 							</div>
 
 							{/* NFC Tags Management */}
-							<div className="bg-white/5 rounded-xl p-6">
+							{/* <div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
 								<div className="flex items-center justify-between mb-4">
-									<h3 className="text-lg font-semibold text-white">
+									<h3 className="text-lg font-semibold text-zinc-900 dark:text-white">
 										Registered NFC Tags
 									</h3>
 									<div className="flex gap-2">
@@ -913,19 +890,19 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 										))
 									)}
 								</div>
-							</div>
+							</div> */}
 						</div>
 					)}
 
 					{activeTab === "status" && (
 						<div className="space-y-6">
-							<div className="bg-white/5 rounded-xl p-6">
-								<h3 className="text-lg font-semibold text-white mb-4">
+							<div className="bg-white/5 rounded-xl p-6 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl">
+								<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 									Connection Status
 								</h3>
 								<div className="space-y-3">
 									<div className="flex justify-between">
-										<span className="text-gray-300">WiFi Status:</span>
+										<span className="text-zinc-600">WiFi Status:</span>
 										<span
 											className={`font-medium ${
 												device.isOnline ? "text-green-400" : "text-red-400"
@@ -935,7 +912,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-gray-300">MQTT Status:</span>
+										<span className="text-zinc-600">MQTT Status:</span>
 										<span
 											className={`font-medium ${
 												device.mqttConnected ? "text-green-400" : "text-red-400"
@@ -945,8 +922,8 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 										</span>
 									</div>
 									<div className="flex justify-between">
-										<span className="text-gray-300">IP Address:</span>
-										<span className="text-white">
+										<span className="text-zinc-600">IP Address:</span>
+										<span className="text-zinc-900 dark:text-white">
 											{device.ipAddress || "Unknown"}
 										</span>
 									</div>
@@ -955,11 +932,10 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 						</div>
 					)}
 				</div>
-
 				{/* Message */}
 				{message && (
-					<div className="flex-shrink-0 p-4 bg-white/10 border-t border-white/10">
-						<p className="text-white text-center">{message}</p>
+					<div className="fixed left-1/2 -translate-x-1/2 bottom-8 z-60 bg-white/80 dark:bg-zinc-900/80 border border-white/20 shadow-xl rounded-xl px-6 py-3 text-center text-zinc-900 dark:text-white max-w-lg w-fit">
+						{message}
 					</div>
 				)}
 			</div>
@@ -971,13 +947,13 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 						className="absolute inset-0 bg-black/50 backdrop-blur-lg"
 						onClick={() => setShowNfcWriteDialog(false)}
 					/>
-					<div className="relative bg-zinc-900 border border-white/20 rounded-xl p-6 w-full max-w-md">
-						<h3 className="text-lg font-semibold text-white mb-4">
+					<div className="relative bg-white/40 dark:bg-zinc-900/80 border-2 border-white/30 dark:border-zinc-700 shadow-2xl rounded-2xl p-8 w-full max-w-md flex flex-col items-center">
+						<h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-4">
 							Write to NFC Tag
 						</h3>
-						<div className="space-y-4">
+						<div className="space-y-4 w-full">
 							<div>
-								<label className="block text-sm text-gray-300 mb-2">
+								<label className="block text-sm text-zinc-600 dark:text-zinc-300 mb-2">
 									Ingredient Name
 								</label>
 								<input
@@ -985,10 +961,10 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 									value={nfcWriteIngredient}
 									onChange={(e) => setNfcWriteIngredient(e.target.value)}
 									placeholder="Enter ingredient name"
-									className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+									className="w-full px-3 py-2 bg-white/20 dark:bg-zinc-800/40 border border-white/30 dark:border-zinc-700 rounded-lg text-zinc-900 dark:text-white focus:outline-none focus:border-indigo-500"
 									autoFocus
 								/>
-								<p className="text-xs text-gray-400 mt-1">
+								<p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
 									<strong>Note:</strong> The write will happen immediately if a
 									tag is present. No tap required after clicking 'Write Tag'.
 								</p>
@@ -997,7 +973,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 								<button
 									onClick={handleNfcWrite}
 									disabled={!nfcWriteIngredient.trim()}
-									className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+									className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 shadow"
 								>
 									Write Tag
 								</button>
@@ -1006,7 +982,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 										setShowNfcWriteDialog(false);
 										setNfcWriteIngredient("");
 									}}
-									className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+									className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 shadow"
 								>
 									Cancel
 								</button>

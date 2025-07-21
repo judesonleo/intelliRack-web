@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import CloseButton from "@/components/CloseButton";
 
 const AddDeviceCard = ({ onClick, socket }) => {
 	const [showDiscovery, setShowDiscovery] = useState(false);
@@ -514,41 +515,25 @@ const AddDeviceCard = ({ onClick, socket }) => {
 
 			{/* Discovery Modal */}
 			{showDiscovery && (
-				<div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+				<div
+					className="fixed inset-0 z-[100] flex items-center justify-center"
+					onClick={() => setShowDiscovery(false)}
+				>
+					<div className="absolute inset-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-lg z-[-1]" />
 					<div
-						className="absolute inset-0 bg-white/20 backdrop-blur-lg"
-						onClick={() => setShowDiscovery(false)}
-					/>
-
-					<div className="relative w-full max-w-4xl bg-black/50  border border-white/20 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-lg">
-						{/* Header */}
-						<div className="flex items-center justify-between p-6 border-b border-white/10">
-							<h2 className="text-2xl font-bold text-white">Add New Device</h2>
-							<button
-								onClick={() => setShowDiscovery(false)}
-								className="p-2 rounded-full hover:bg-white/10 transition-colors"
-							>
-								<svg
-									className="w-6 h-6 text-white"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M6 18L18 6M6 6l12 12"
-									/>
-								</svg>
-							</button>
+						className="relative bg-white/30 dark:bg-zinc-900/60 backdrop-blur-2xl rounded-2xl border-2 border-white/30 dark:border-zinc-700 shadow-2xl w-full max-w-4xl p-8 overflow-y-auto max-h-[90vh] animate-fadein"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<CloseButton onClick={() => setShowDiscovery(false)} />
+						<div className="flex items-center justify-between mb-6">
+							<h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+								Add New Device
+							</h2>
 						</div>
-
-						{/* Content */}
-						<div className="p-6 max-h-[70vh] overflow-y-auto">
+						<div className="overflow-y-auto min-h-0">
 							{/* Discovery Section */}
 							<div className="mb-6">
-								<h3 className="text-lg font-semibold text-white mb-4">
+								<h3 className="text-lg font-semibold text-black mb-4">
 									Device Discovery
 								</h3>
 
@@ -641,7 +626,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 															</div>
 															<div>
 																<span className="text-gray-400">IP:</span>
-																<span className="text-white ml-2">
+																<span className="text-zinc-900 dark:text-white ml-2">
 																	{device.ipAddress}
 																</span>
 															</div>
@@ -710,7 +695,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 
 							{/* Registration Form */}
 							{selectedDevice && (
-								<div className="bg-white/5 rounded-xl p-6">
+								<div className="bg-white/40 dark:bg-zinc-900/40 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl p-6">
 									<h3 className="text-lg font-semibold text-white mb-4">
 										Register Device
 									</h3>
@@ -816,14 +801,14 @@ const AddDeviceCard = ({ onClick, socket }) => {
 										</div>
 
 										{/* Device Info Summary */}
-										<div className="bg-white/5 rounded-lg p-4 mt-4">
+										<div className="bg-white/40 dark:bg-zinc-900/40 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl p-4 mt-4">
 											<h4 className="text-white font-medium mb-2">
 												Device Information
 											</h4>
 											<div className="grid grid-cols-2 gap-2 text-sm">
 												<div>
 													<span className="text-gray-400">IP Address:</span>{" "}
-													<span className="text-white">
+													<span className="text-zinc-900 dark:text-white">
 														{selectedDevice.ipAddress}
 													</span>
 												</div>
