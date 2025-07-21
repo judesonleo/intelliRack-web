@@ -27,7 +27,7 @@ export default function AlertsWidget({ alerts }) {
 							{typeof a.device === "string"
 								? a.device
 								: a.device && typeof a.device === "object"
-								? a.device.rackId || a.device.id || "-"
+								? a.device.rackId || a.device._id || "-"
 								: "-"}
 							| Slot: {a.slotId || "-"}
 						</span>
