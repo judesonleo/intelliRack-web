@@ -554,7 +554,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 											<h4 className="text-yellow-400 font-medium mb-2">
 												Discovery Note
 											</h4>
-											<p className="text-sm text-gray-300 mb-3">
+											<p className="text-sm text-black mb-3">
 												If you're accessing this app over HTTPS and no devices
 												are found, it may be due to browser security policies
 												blocking HTTP requests to local devices.
@@ -587,7 +587,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 
 								{discoveredDevices.length > 0 && (
 									<div className="space-y-3">
-										<h4 className="text-white font-medium">
+										<h4 className="text-black font-medium">
 											Discovered Devices:
 										</h4>
 										{discoveredDevices.map((device, index) => (
@@ -603,7 +603,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 												<div className="flex justify-between items-start">
 													<div className="flex-1">
 														<div className="flex items-center gap-3 mb-2">
-															<h5 className="text-white font-medium">
+															<h5 className="text-black font-medium">
 																{typeof device.name === "string"
 																	? device.name
 																	: device.deviceId || "Unknown Device"}
@@ -619,26 +619,26 @@ const AddDeviceCard = ({ onClick, socket }) => {
 														</div>
 														<div className="grid grid-cols-2 gap-2 text-sm">
 															<div>
-																<span className="text-gray-400">Rack ID:</span>
-																<span className="text-white ml-2">
+																<span className="text-black">Rack ID:</span>
+																<span className="text-black ml-2">
 																	{device.deviceId}
 																</span>
 															</div>
 															<div>
-																<span className="text-gray-400">IP:</span>
-																<span className="text-zinc-900 dark:text-white ml-2">
+																<span className="text-black">IP:</span>
+																<span className="text-black ml-2">
 																	{device.ipAddress}
 																</span>
 															</div>
 															<div>
-																<span className="text-gray-400">Weight:</span>
-																<span className="text-white ml-2">
+																<span className="text-black">Weight:</span>
+																<span className="text-black ml-2">
 																	{device.currentWeight}g
 																</span>
 															</div>
 															<div>
-																<span className="text-gray-400">Firmware:</span>
-																<span className="text-white ml-2">
+																<span className="text-black">Firmware:</span>
+																<span className="text-black ml-2">
 																	{device.firmwareVersion}
 																</span>
 															</div>
@@ -669,7 +669,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 									<h4 className="text-blue-400 font-medium mb-2">
 										Manual Device Entry
 									</h4>
-									<p className="text-sm text-gray-300 mb-3">
+									<p className="text-sm text-black mb-3">
 										If automatic discovery doesn't work, you can manually enter
 										device details.
 									</p>
@@ -696,13 +696,12 @@ const AddDeviceCard = ({ onClick, socket }) => {
 							{/* Registration Form */}
 							{selectedDevice && (
 								<div className="bg-white/40 dark:bg-zinc-900/40 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl p-6">
-									<h3 className="text-lg font-semibold text-white mb-4">
+									<h3 className="text-lg font-semibold text-black mb-4">
 										Register Device
 									</h3>
-
 									<div className="space-y-4">
 										<div>
-											<label className="block text-sm text-gray-300 mb-2">
+											<label className="block text-sm text-black mb-2">
 												Device Name
 											</label>
 											<input
@@ -715,12 +714,11 @@ const AddDeviceCard = ({ onClick, socket }) => {
 													}))
 												}
 												placeholder="e.g., Kitchen Rack 1"
-												className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+												className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:outline-none focus:border-indigo-500"
 											/>
 										</div>
-
 										<div>
-											<label className="block text-sm text-gray-300 mb-2">
+											<label className="block text-sm text-black mb-2">
 												Rack ID
 											</label>
 											<input
@@ -733,7 +731,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 													}))
 												}
 												placeholder="e.g., rack_001"
-												className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+												className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:outline-none focus:border-indigo-500"
 												readOnly={!selectedDevice.isManual}
 											/>
 											<p className="text-xs text-gray-400 mt-1">
@@ -742,48 +740,27 @@ const AddDeviceCard = ({ onClick, socket }) => {
 													: "Auto-filled from discovered device"}
 											</p>
 										</div>
-
 										{selectedDevice.isManual && (
-											<>
-												<div>
-													<label className="block text-sm text-gray-300 mb-2">
-														IP Address
-													</label>
-													<input
-														type="text"
-														value={selectedDevice.ipAddress}
-														onChange={(e) =>
-															setSelectedDevice((prev) => ({
-																...prev,
-																ipAddress: e.target.value,
-															}))
-														}
-														placeholder="e.g., 192.168.1.100"
-														className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
-													/>
-												</div>
-												<div>
-													<label className="block text-sm text-gray-300 mb-2">
-														MAC Address (Optional)
-													</label>
-													<input
-														type="text"
-														value={selectedDevice.macAddress}
-														onChange={(e) =>
-															setSelectedDevice((prev) => ({
-																...prev,
-																macAddress: e.target.value,
-															}))
-														}
-														placeholder="e.g., AA:BB:CC:DD:EE:FF"
-														className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
-													/>
-												</div>
-											</>
+											<div>
+												<label className="block text-sm text-black mb-2">
+													IP Address
+												</label>
+												<input
+													type="text"
+													value={selectedDevice.ipAddress}
+													onChange={(e) =>
+														setSelectedDevice((prev) => ({
+															...prev,
+															ipAddress: e.target.value,
+														}))
+													}
+													placeholder="e.g., 192.168.1.100"
+													className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:outline-none focus:border-indigo-500"
+												/>
+											</div>
 										)}
-
 										<div>
-											<label className="block text-sm text-gray-300 mb-2">
+											<label className="block text-sm text-black mb-2">
 												Location
 											</label>
 											<input
@@ -796,54 +773,20 @@ const AddDeviceCard = ({ onClick, socket }) => {
 													}))
 												}
 												placeholder="e.g., Kitchen, Pantry"
-												className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white focus:outline-none focus:border-indigo-500"
+												className="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-black focus:outline-none focus:border-indigo-500"
 											/>
 										</div>
-
-										{/* Device Info Summary */}
-										<div className="bg-white/40 dark:bg-zinc-900/40 border border-white/30 dark:border-zinc-700 shadow-xl rounded-xl p-4 mt-4">
-											<h4 className="text-white font-medium mb-2">
-												Device Information
-											</h4>
-											<div className="grid grid-cols-2 gap-2 text-sm">
-												<div>
-													<span className="text-gray-400">IP Address:</span>{" "}
-													<span className="text-zinc-900 dark:text-white">
-														{selectedDevice.ipAddress}
-													</span>
-												</div>
-												<div>
-													<span className="text-gray-400">MAC Address:</span>{" "}
-													<span className="text-white">
-														{selectedDevice.macAddress}
-													</span>
-												</div>
-												<div>
-													<span className="text-gray-400">Current Weight:</span>{" "}
-													<span className="text-white">
-														{selectedDevice.currentWeight}g
-													</span>
-												</div>
-												<div>
-													<span className="text-gray-400">Status:</span>{" "}
-													<span className="text-white">
-														{selectedDevice.currentStatus}
-													</span>
-												</div>
-											</div>
-										</div>
 									</div>
-
 									<div className="flex gap-3 mt-6">
 										<button
 											onClick={() => registerDevice(selectedDevice)}
-											className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+											className="flex-1 px-4 py-2 bg-green-600 text-black rounded-lg hover:bg-green-700 transition-colors"
 										>
 											Register Device
 										</button>
 										<button
 											onClick={() => setShowDiscovery(false)}
-											className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+											className="px-4 py-2 bg-gray-600 text-black rounded-lg hover:bg-gray-700 transition-colors"
 										>
 											Cancel
 										</button>
