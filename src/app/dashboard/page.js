@@ -40,7 +40,7 @@ import CloseButton from "@/components/CloseButton";
 import { AreaChart, Area } from "recharts";
 import IngredientsTab from "@/components/dashboard/IngredientsTab";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
-import { API_URL } from "@/lib/auth";
+import { API_URL } from "../../lib/auth";
 
 const API_BASE = API_URL;
 
