@@ -1,5 +1,6 @@
 const API_URL =
-	process.env.NEXT_PUBLIC_API_URL || "https://intellibackend.judesonleo.me/api";
+	process.env.NEXT_PUBLIC_API_URL ||
+	"https://intellibackend.judesonleo.dev/api";
 
 export async function login(email, password) {
 	const res = await fetch(`${API_URL}/auth/login`, {
