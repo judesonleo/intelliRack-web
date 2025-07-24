@@ -95,3 +95,4 @@ export async function fetchWithAuth(url, options = {}) {
 		},
 	});
 }
+export { API_URL };

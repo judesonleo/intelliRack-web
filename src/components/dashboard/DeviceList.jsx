@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import DeviceCard from "./DeviceCard";
 import AddDeviceCard from "./AddDeviceCard";
+import { API_URL } from "@/lib/auth";
 
 const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 	const [deviceStatus, setDeviceStatus] = useState(new Map());
@@ -8,9 +9,7 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 	const [editForm, setEditForm] = useState({ name: "", location: "" });
 	const [isEditing, setIsEditing] = useState(false);
 	const [ingredientDetails, setIngredientDetails] = useState(null);
-	const API_URL =
-		process.env.NEXT_PUBLIC_API_URL ||
-		"https://intellibackend.judesonleo.me/api";
+
 	useEffect(() => {
 		if (!socket) return;
 
@@ -117,6 +116,8 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 	const handleEditSubmit = async (e) => {
 		e.preventDefault();
 		try {
+			// console.log(API_URL);
+
 			const res = await fetch(`${API_URL}/devices/${editDevice.rackId}`, {
 				method: "PATCH",
 				headers: {

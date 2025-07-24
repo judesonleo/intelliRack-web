@@ -10,9 +10,9 @@ import {
 	Tooltip,
 	ResponsiveContainer,
 } from "recharts";
+import { API_URL } from "@/lib/auth";
 
-const API_BASE =
-	process.env.NEXT_PUBLIC_API_URL || "https://intellibackend.judesonleo.me/api";
+const API_BASE = API_URL;
 
 export default function IngredientsTab({ onIngredientChange }) {
 	const [ingredients, setIngredients] = useState([]); // [{ name, status, weight, lastUpdated, daysLeft, usageData, ... }]

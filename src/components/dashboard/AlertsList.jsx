@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { API_URL } from "@/lib/auth";
 
-const API_BASE =
-	process.env.NEXT_PUBLIC_API_URL || "https://intellibackend.judesonleo.me/api";
+const API_BASE = API_URL;
 
 export default function AlertsList() {
 	const [alerts, setAlerts] = useState([]);

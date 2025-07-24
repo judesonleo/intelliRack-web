@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import StatusDot from "@/components/StatusDot";
+import { API_URL } from "@/lib/auth";
 
-const API_BASE =
-	process.env.NEXT_PUBLIC_API_URL || "https://intellibackend.judesonleo.me/api";
+const API_BASE = API_URL;
 
 function Card({ title, children, className = "" }) {
 	return (
