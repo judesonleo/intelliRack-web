@@ -3,7 +3,7 @@ import { API_URL } from "@/lib/auth";
 
 const API_BASE = API_URL;
 
-export default function AlertsList() {
+export default function AlertsList({ alerts: propAlerts, onAlertModified }) {
 	const [alerts, setAlerts] = useState([]);
 	const [stats, setStats] = useState(null);
 	const [filter, setFilter] = useState("all");
@@ -12,21 +12,55 @@ export default function AlertsList() {
 	const [error, setError] = useState("");
 	const [actionLoading, setActionLoading] = useState(false);
 
+	// Use props if available, otherwise use local state
+	const currentAlerts = propAlerts || alerts;
+
 	const fetchAlerts = async () => {
 		setLoading(true);
 		setError("");
 		try {
 			const token = localStorage.getItem("token");
-			const params = new URLSearchParams({
-				status: filter === "all" ? undefined : filter,
-				sort: sortBy,
-			});
-			const res = await fetch(`${API_BASE}/alerts?${params.toString()}`, {
+
+			// Build query parameters properly
+			const params = new URLSearchParams();
+			if (filter !== "all") {
+				params.append("status", filter);
+			}
+			if (sortBy) {
+				params.append("sort", sortBy);
+			}
+			params.append("limit", "25");
+
+			const queryString = params.toString();
+			const url = queryString
+				? `${API_BASE}/alerts?${queryString}`
+				: `${API_BASE}/alerts?limit=25`;
+
+			console.log("AlertsList - Fetching from URL:", url);
+
+			const res = await fetch(url, {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			if (!res.ok) throw new Error("Failed to fetch alerts");
 			const data = await res.json();
-			setAlerts(data);
+			// Handle both new paginated format and old array format
+			const alertsData = data.alerts || data;
+			setAlerts(alertsData);
+
+			// If we're using props, also update the local state for operations
+			if (propAlerts) {
+				// This ensures we have fresh data for operations
+				console.log(
+					"AlertsList - Fetched fresh data for operations:",
+					alertsData.length,
+					"alerts"
+				);
+				// Debug: Log the first few alert IDs from backend
+				console.log(
+					"AlertsList - Backend alert IDs:",
+					alertsData.slice(0, 3).map((a) => a._id)
+				);
+			}
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -47,23 +81,86 @@ export default function AlertsList() {
 	};
 
 	useEffect(() => {
-		fetchAlerts();
-		fetchStats();
+		// Always fetch stats and set loading to false if props are provided
+		if (propAlerts) {
+			setLoading(false);
+			fetchStats();
+		} else {
+			// Only fetch alerts if no props are provided
+			fetchAlerts();
+			fetchStats();
+		}
 		// eslint-disable-next-line
-	}, [filter, sortBy]);
+	}, [propAlerts]);
+
+	// Handle props changes - when parent updates alerts, refresh local state for operations
+	useEffect(() => {
+		if (propAlerts && propAlerts.length > 0) {
+			// Update local state with props data for operations
+			setAlerts(propAlerts);
+			console.log(
+				"AlertsList - Props updated, syncing local state:",
+				propAlerts.length,
+				"alerts"
+			);
+			// Debug: Log the first few alert IDs from props
+			console.log(
+				"AlertsList - Props alert IDs:",
+				propAlerts.slice(0, 3).map((a) => a._id)
+			);
+		}
+	}, [propAlerts]);
+
+	// Fetch alerts when filter or sort changes (only if not using props)
+	useEffect(() => {
+		if (!propAlerts) {
+			fetchAlerts();
+		}
+	}, [filter, sortBy, propAlerts]);
 
 	const acknowledgeAlert = async (alertId) => {
 		setActionLoading(true);
 		try {
 			const token = localStorage.getItem("token");
+
+			// Use props data directly if available, otherwise fetch fresh data
+			const currentData = propAlerts || alerts;
+
+			// Validate that the alert ID exists in the current data
+			const alertExists = currentData.find((alert) => alert._id === alertId);
+			if (!alertExists) {
+				console.warn(`AlertsList - Alert ${alertId} not found in current data`);
+				// If using props, notify parent to refresh
+				if (propAlerts) {
+					// Try to refresh parent data instead of reloading
+					console.log("AlertsList - Requesting parent to refresh data");
+					// For now, just show an error - the parent should handle refresh
+					throw new Error("Alert not found - data may be stale");
+				}
+				throw new Error("Alert not found");
+			}
+
+			console.log(
+				`AlertsList - Acknowledging alert ${alertId} (${alertExists.ingredient})`
+			);
+
 			const res = await fetch(`${API_BASE}/alerts/${alertId}/acknowledge`, {
 				method: "PATCH",
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			if (!res.ok) throw new Error("Failed to acknowledge alert");
-			await fetchAlerts();
-			await fetchStats();
+
+			// If using props, let parent handle refresh
+			// If not using props, refresh local data
+			if (!propAlerts) {
+				await fetchAlerts();
+				await fetchStats();
+			} else if (onAlertModified) {
+				// Notify parent to refresh data
+				onAlertModified();
+			}
 		} catch (err) {
+			console.error("AlertsList - Error acknowledging alert:", err);
 			alert("Failed to acknowledge alert: " + err.message);
 		} finally {
 			setActionLoading(false);
@@ -74,11 +171,17 @@ export default function AlertsList() {
 		setActionLoading(true);
 		try {
 			const token = localStorage.getItem("token");
+
+			// Always fetch fresh data to ensure we have current data
+			await fetchAlerts();
+
 			const res = await fetch(`${API_BASE}/alerts/acknowledge-all`, {
 				method: "PATCH",
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			if (!res.ok) throw new Error("Failed to acknowledge all alerts");
+
+			// Refresh data after successful acknowledgment
 			await fetchAlerts();
 			await fetchStats();
 		} catch (err) {
@@ -93,14 +196,45 @@ export default function AlertsList() {
 		setActionLoading(true);
 		try {
 			const token = localStorage.getItem("token");
+
+			// Use props data directly if available, otherwise fetch fresh data
+			const currentData = propAlerts || alerts;
+
+			// Validate that the alert ID exists in the current data
+			const alertExists = currentData.find((alert) => alert._id === alertId);
+			if (!alertExists) {
+				console.warn(`AlertsList - Alert ${alertId} not found in current data`);
+				// If using props, notify parent to refresh
+				if (propAlerts) {
+					// Try to refresh parent data instead of reloading
+					console.log("AlertsList - Requesting parent to refresh data");
+					// For now, just show an error - the parent should handle refresh
+					throw new Error("Alert not found - data may be stale");
+				}
+				throw new Error("Alert not found");
+			}
+
+			console.log(
+				`AlertsList - Deleting alert ${alertId} (${alertExists.ingredient})`
+			);
+
 			const res = await fetch(`${API_BASE}/alerts/${alertId}`, {
 				method: "DELETE",
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			if (!res.ok) throw new Error("Failed to delete alert");
-			await fetchAlerts();
-			await fetchStats();
+
+			// If using props, let parent handle refresh
+			// If not using props, refresh local data
+			if (!propAlerts) {
+				await fetchAlerts();
+				await fetchStats();
+			} else if (onAlertModified) {
+				// Notify parent to refresh data
+				onAlertModified();
+			}
 		} catch (err) {
+			console.error("AlertsList - Error deleting alert:", err);
 			alert("Failed to delete alert: " + err.message);
 		} finally {
 			setActionLoading(false);
@@ -112,11 +246,17 @@ export default function AlertsList() {
 		setActionLoading(true);
 		try {
 			const token = localStorage.getItem("token");
+
+			// Always fetch fresh data to ensure we have current data
+			await fetchAlerts();
+
 			const res = await fetch(`${API_BASE}/alerts/clearacknowledged`, {
 				method: "DELETE",
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			if (!res.ok) throw new Error("Failed to clear acknowledged alerts");
+
+			// Refresh data after successful deletion
 			await fetchAlerts();
 			await fetchStats();
 		} catch (err) {
@@ -287,15 +427,15 @@ export default function AlertsList() {
 				<>
 					{/* Alerts List */}
 					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-						{alerts.length === 0 ? (
+						{!currentAlerts || currentAlerts.length === 0 ? (
 							<div className="col-span-full text-center py-8 text-gray-400">
 								<p>No alerts to show</p>
 								<p className="text-sm">
 									Alerts will appear here when devices detect issues
 								</p>
 							</div>
-						) : (
-							alerts.map((alert, index) => (
+						) : Array.isArray(currentAlerts) ? (
+							currentAlerts.map((alert, index) => (
 								<div
 									key={alert._id || index}
 									className={`rounded-lg border border-gray-200 shadow-sm flex flex-col gap-2 px-4 py-2 bg-white/70 dark:bg-zinc-900/30 transition-all ${
@@ -375,6 +515,11 @@ export default function AlertsList() {
 									</div>
 								</div>
 							))
+						) : (
+							<div className="col-span-full text-center py-8 text-red-400">
+								<p>Invalid alerts data format</p>
+								<p className="text-sm">Please refresh the page</p>
+							</div>
 						)}
 					</div>
 					{/* Quick Actions */}
