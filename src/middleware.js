@@ -5,12 +5,7 @@ export function middleware(request) {
 	const { pathname } = request.nextUrl;
 
 	// Public paths that don't require authentication
-	const publicPaths = [
-		"/login",
-		"/register",
-		"/",
-		"/dashboard", //remove this in production
-	];
+	const publicPaths = ["/login", "/register", "/", "/dashboard"];
 
 	// If the user is not logged in and trying to access a protected route
 	if (!isLoggedIn && !publicPaths.includes(pathname)) {
@@ -19,7 +14,7 @@ export function middleware(request) {
 
 	// If the user is logged in and trying to access login/register pages
 	if (isLoggedIn && (pathname === "/login" || pathname === "/register")) {
-		return NextResponse.redirect(new URL("/dashboard", request.url));
+		return NextResponse.redirect(new URL("/dashbard", request.url));
 	}
 
 	return NextResponse.next();

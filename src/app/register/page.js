@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,13 @@ export default function RegisterPage() {
 	function handleChange(e) {
 		setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 	}
+
+	// useEffect(() => {
+	// 	const isLoggedIn = localStorage.getItem("isLoggedIn");
+	// 	if (isLoggedIn) {
+	// 		router.replace("/dashboard");
+	// 	}
+	// }, []);
 
 	return (
 		<div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">

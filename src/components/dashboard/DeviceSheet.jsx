@@ -303,6 +303,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 				onClick={(e) => e.stopPropagation()}
 			>
 				<CloseButton onClick={onClose} />
+
 				<div className="flex justify-between items-center mb-4">
 					<div className="flex items-center gap-2">
 						<div className="relative w-12 h-12">
@@ -319,6 +320,102 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 								? device.name
 								: device.rackId || "Unknown Device"}
 						</h2>
+					</div>
+				</div>
+
+				{/* Enhanced Status Header */}
+				<div className="relative mb-8 p-6 bg-white/30 dark:bg-zinc-900/60 rounded-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.1),inset_0_-1px_4px_rgba(255,255,255,0.1)] dark:shadow-[inset_0_2px_8px_rgba(0,0,0,0.2),inset_0_-1px_4px_rgba(255,255,255,0.05)]">
+					{/* Header Title with Live/Offline Status */}
+					<div className="flex items-center justify-center mb-6">
+						<div className="flex items-center gap-2 px-4 py-2 rounded-full shadow-[inset_0_1px_3px_rgba(0,0,0,0.15),inset_0_-1px_2px_rgba(255,255,255,0.1)] dark:shadow-[inset_0_1px_3px_rgba(0,0,0,0.3),inset_0_-1px_2px_rgba(255,255,255,0.05)]">
+							<div
+								className={`w-2 h-2 rounded-full ${
+									device?.isOnline ? "bg-green-500" : "bg-red-500"
+								} animate-pulse`}
+							></div>
+							<span
+								className={`text-sm font-medium ${
+									device?.isOnline
+										? "text-green-700 dark:text-green-400"
+										: "text-red-700 dark:text-red-400"
+								}`}
+							>
+								{device?.isOnline ? "LIVE" : "OFFLINE"}
+							</span>
+						</div>
+					</div>
+
+					{/* Status Grid */}
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+						{/* Weight */}
+						<div className="text-center group">
+							<div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium uppercase tracking-wide">
+								Weight
+							</div>
+							<div className="text-xl font-bold text-gray-700 dark:text-gray-300 transition-all duration-300 group-hover:scale-105">
+								{device?.lastWeight ? `${device.lastWeight.toFixed(1)}g` : "--"}
+							</div>
+						</div>
+
+						{/* Ingredient */}
+						<div className="text-center group">
+							<div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium uppercase tracking-wide">
+								Ingredient
+							</div>
+							<div className="text-xl font-bold text-gray-700 dark:text-gray-300 transition-all duration-300 group-hover:scale-105">
+								{device?.ingredient || "Not Set"}
+							</div>
+						</div>
+
+						{/* Status */}
+						<div className="text-center group">
+							<div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium uppercase tracking-wide">
+								Status
+							</div>
+							<div
+								className={`text-lg font-bold px-3 py-1 rounded-full transition-all duration-300 group-hover:scale-105 ${
+									device?.lastStatus === "GOOD"
+										? "bg-green-200 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+										: device?.lastStatus === "OK"
+										? "bg-yellow-200 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
+										: device?.lastStatus === "LOW"
+										? "bg-orange-200 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
+										: device?.lastStatus === "VLOW"
+										? "bg-red-200 text-red-800 dark:bg-red-800/30 dark:text-red-300"
+										: device?.lastStatus === "EMPTY"
+										? "bg-red-300 text-red-900 dark:bg-red-900/30 dark:text-red-200"
+										: "bg-gray-200 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
+								}`}
+							>
+								{device?.lastStatus || "UNKNOWN"}
+							</div>
+						</div>
+
+						{/* Connection */}
+						<div className="text-center group">
+							<div className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium uppercase tracking-wide">
+								Connection
+							</div>
+							<div
+								className={`text-lg font-bold px-3 py-1 rounded-full transition-all duration-300 group-hover:scale-105 ${
+									device?.isOnline
+										? "bg-green-200 text-green-800 dark:bg-green-800/30 dark:text-green-300"
+										: "bg-gray-200 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
+								}`}
+							>
+								{device?.isOnline ? "Online" : "Offline"}
+							</div>
+						</div>
+					</div>
+
+					{/* Last Update Footer */}
+					<div className="text-center mt-6 pt-4 border-t border-gray-300 dark:border-zinc-600">
+						<div className="text-xs text-gray-500 dark:text-gray-400">
+							Last updated:{" "}
+							{device?.lastSeen
+								? new Date(device.lastSeen).toLocaleString()
+								: "Never"}
+						</div>
 					</div>
 				</div>
 				<div className="flex border-b border-white/10 mb-6">

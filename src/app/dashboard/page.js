@@ -87,12 +87,25 @@ export default function DashboardPage() {
 	const [selectedDevice, setSelectedDevice] = useState(null);
 	const router = useRouter();
 	const socketRef = useRef(null);
-	const [ingredients, setIngredients] = useState([]); // [{ name, status, weight, lastUpdated, daysLeft, usageData, ... }]
-	const [ingredientDetails, setIngredientDetails] = useState(null); // { name, logs, prediction, usage, anomalies, substitutions, recommendations }
+	const [ingredients, setIngredients] = useState([]);
+	const [ingredientDetails, setIngredientDetails] = useState(null);
 	const [ingredientModalOpen, setIngredientModalOpen] = useState(false);
+
+	// Loading states for better UX
+	const [devicesLoading, setDevicesLoading] = useState(false);
+	const [logsLoading, setLogsLoading] = useState(false);
+	const [alertsLoading, setAlertsLoading] = useState(false);
+	const [ingredientsLoading, setIngredientsLoading] = useState(false);
+
+	// Add caching for ingredient predictions
+	const [predictionsCache, setPredictionsCache] = useState({});
+	const [lastPredictionsUpdate, setLastPredictionsUpdate] = useState(0);
+	const [lastIngredientsUpdate, setLastIngredientsUpdate] = useState(0);
+	const PREDICTIONS_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 	const fetchDevices = async () => {
 		try {
+			setDevicesLoading(true);
 			const token = localStorage.getItem("token");
 			const response = await fetch(`${API_BASE}/devices/my`, {
 				headers: {
@@ -106,11 +119,384 @@ export default function DashboardPage() {
 			}
 		} catch (error) {
 			console.error("Error fetching devices:", error);
+		} finally {
+			setDevicesLoading(false);
+		}
+	};
+
+	const fetchLogs = async () => {
+		try {
+			setLogsLoading(true);
+			const token = localStorage.getItem("token");
+			const response = await fetch(`${API_BASE}/logs/?limit=50`, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+				},
+			});
+			if (response.ok) {
+				const data = await response.json();
+				setLogs(data.logs || data); // Handle both new and old format
+			}
+		} catch (error) {
+			console.error("Error fetching logs:", error);
+		} finally {
+			setLogsLoading(false);
+		}
+	};
+
+	// Optimized fetch for dashboard overview (limited data)
+	const fetchDashboardData = async () => {
+		try {
+			const token = localStorage.getItem("token");
+			console.log("Dashboard - Token exists:", !!token);
+			console.log(
+				"Dashboard - Token preview:",
+				token ? token.substring(0, 20) + "..." : "No token"
+			);
+			console.log("Dashboard - API_BASE:", API_BASE);
+
+			const headers = {
+				Authorization: `Bearer ${token}`,
+				"Content-Type": "application/json",
+			};
+			console.log("Dashboard - Headers:", headers);
+
+			// Fetch devices
+			setDevicesLoading(true);
+			const devicesRes = await fetch(`${API_BASE}/devices/my`, { headers });
+			if (devicesRes.ok) {
+				const devicesData = await devicesRes.json();
+				setDevices(devicesData);
+			}
+			setDevicesLoading(false);
+
+			// Fetch limited alerts for dashboard
+			setAlertsLoading(true);
+			const alertsRes = await fetch(
+				`${API_BASE}/alerts/?status=active&limit=5`,
+				{ headers }
+			);
+			if (alertsRes.ok) {
+				const data = await alertsRes.json();
+				setAlerts(data.alerts || data); // Handle both new and old format
+			}
+			setAlertsLoading(false);
+
+			// Fetch limited logs for dashboard
+			setLogsLoading(true);
+			const logsRes = await fetch(`${API_BASE}/logs/?limit=3&sort=newest`, {
+				headers,
+			});
+			if (logsRes.ok) {
+				const data = await logsRes.json();
+				setLogs(data.logs || data); // Handle both new and old format
+			}
+			setLogsLoading(false);
+
+			// Fetch ingredients summary for dashboard overview
+			setIngredientsLoading(true);
+			console.log(
+				"Dashboard - Fetching ingredients from:",
+				`${API_BASE}/ingredients/summary`
+			);
+			const ingredientsRes = await fetch(`${API_BASE}/ingredients/summary`, {
+				headers,
+			});
+			console.log(
+				"Dashboard - Ingredients response status:",
+				ingredientsRes.status
+			);
+			console.log("Dashboard - Ingredients response ok:", ingredientsRes.ok);
+
+			if (ingredientsRes.ok) {
+				const ingredientsData = await ingredientsRes.json();
+				console.log("Dashboard - Raw ingredients data:", ingredientsData);
+
+				// IMMEDIATE RENDER: Show ingredients first, then enhance with predictions
+				setIngredients(ingredientsData);
+				console.log(
+					"Dashboard - Ingredients rendered immediately:",
+					ingredientsData.length
+				);
+
+				// BACKGROUND ENHANCEMENT: Load predictions in background
+				setTimeout(async () => {
+					try {
+						const ingredientNames = ingredientsData.map((ing) => ing.name);
+						console.log(
+							`Dashboard - Background: Fetching batch predictions for ${ingredientNames.length} ingredients`
+						);
+
+						// Check if we have valid cached predictions
+						const now = Date.now();
+						const cacheIsValid =
+							now - lastPredictionsUpdate < PREDICTIONS_CACHE_DURATION;
+						const hasCachedPredictions =
+							Object.keys(predictionsCache).length > 0;
+
+						if (cacheIsValid && hasCachedPredictions) {
+							console.log("Dashboard - Using cached predictions");
+
+							// Enhance ingredients with cached predictions
+							const enhancedIngredients = ingredientsData.map((ingredient) => {
+								const cachedPrediction = predictionsCache[ingredient.name];
+								return {
+									...ingredient,
+									daysLeft: cachedPrediction?.prediction ?? null,
+									predictionError: cachedPrediction?.error || null,
+								};
+							});
+
+							setIngredients(enhancedIngredients);
+						} else {
+							// Fetch fresh predictions
+							console.log("Dashboard - Starting batch prediction fetch...");
+							const startTime = Date.now();
+
+							// Add timeout to prevent hanging requests
+							const controller = new AbortController();
+							const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+							try {
+								const batchPredRes = await fetch(
+									`${API_BASE}/ingredients/predictions/batch?ingredients=${JSON.stringify(
+										ingredientNames
+									)}`,
+									{
+										headers,
+										signal: controller.signal,
+									}
+								);
+
+								clearTimeout(timeoutId);
+								const fetchTime = Date.now() - startTime;
+								console.log(
+									`Dashboard - Batch prediction completed in ${fetchTime}ms`
+								);
+
+								if (batchPredRes.ok) {
+									const batchData = await batchPredRes.json();
+									console.log(
+										"Dashboard - Batch predictions received:",
+										batchData
+									);
+
+									// Cache the predictions
+									const newCache = {};
+									batchData.predictions.forEach((pred) => {
+										newCache[pred.ingredient] = pred;
+									});
+									setPredictionsCache(newCache);
+									setLastPredictionsUpdate(now);
+
+									// Enhance ingredients with batch predictions
+									const enhancedIngredients = ingredientsData.map(
+										(ingredient) => {
+											const prediction = batchData.predictions.find(
+												(p) => p.ingredient === ingredient.name
+											);
+											return {
+												...ingredient,
+												daysLeft: prediction?.prediction ?? null,
+												predictionError: prediction?.error || null,
+											};
+										}
+									);
+
+									console.log(
+										"Dashboard - Enhanced ingredients with batch predictions:",
+										enhancedIngredients.length
+									);
+									setIngredients(enhancedIngredients);
+								} else {
+									console.warn(
+										"Dashboard - Batch prediction failed, using ingredients without predictions"
+									);
+									setIngredients(ingredientsData);
+								}
+							} catch (error) {
+								console.error(
+									"Dashboard - Error fetching batch predictions:",
+									error
+								);
+								// Fallback to ingredients without predictions
+								setIngredients(ingredientsData);
+							}
+						}
+					} catch (error) {
+						console.error(
+							"Dashboard - Error fetching batch predictions:",
+							error
+						);
+						// Fallback to ingredients without predictions
+						setIngredients(ingredientsData);
+					}
+				}, 0); // Schedule for next tick
+			} else {
+				console.error(
+					"Dashboard - Failed to fetch ingredients:",
+					ingredientsRes.status,
+					ingredientsRes.statusText
+				);
+			}
+			setIngredientsLoading(false);
+		} catch (error) {
+			console.error("Error fetching dashboard data:", error);
+		}
+	};
+
+	const fetchAlerts = async (includeAcknowledged = false) => {
+		try {
+			setAlertsLoading(true);
+			const token = localStorage.getItem("token");
+			// Fetch active alerts by default, or all alerts if includeAcknowledged is true
+			const statusParam = includeAcknowledged ? "" : "?status=active";
+			const response = await fetch(
+				`${API_BASE}/alerts/${statusParam}&limit=25`,
+				{
+					headers: {
+						Authorization: `Bearer ${token}`,
+						"Content-Type": "application/json",
+					},
+				}
+			);
+			if (response.ok) {
+				const data = await response.json();
+				setAlerts(data.alerts || data); // Handle both new and old format
+			}
+		} catch (error) {
+			console.error("Error fetching alerts:", error);
+		} finally {
+			setAlertsLoading(false);
+		}
+	};
+
+	const fetchAllAlerts = async () => {
+		try {
+			setAlertsLoading(true);
+			const token = localStorage.getItem("token");
+			// Fetch all alerts (including acknowledged ones) for the Alerts tab
+			const response = await fetch(`${API_BASE}/alerts/?limit=25`, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+				},
+			});
+			if (response.ok) {
+				const data = await response.json();
+				setAlerts(data.alerts || data); // Handle both new and old format
+			}
+		} catch (error) {
+			console.error("Error fetching all alerts:", error);
+		} finally {
+			setAlertsLoading(false);
+		}
+	};
+
+	const fetchIngredients = async () => {
+		try {
+			setIngredientsLoading(true);
+			const token = localStorage.getItem("token");
+			const response = await fetch(`${API_BASE}/ingredients/summary`, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+				},
+			});
+			if (response.ok) {
+				const data = await response.json();
+				setIngredients(data);
+				setLastIngredientsUpdate(Date.now()); // Track when data was last updated
+				console.log(
+					"Dashboard - Ingredients data updated at:",
+					new Date().toLocaleString()
+				);
+			}
+		} catch (error) {
+			console.error("Error fetching ingredients:", error);
+		} finally {
+			setIngredientsLoading(false);
+		}
+	};
+
+	const handleAlertAcknowledged = async (alertId) => {
+		try {
+			console.log("Dashboard - Alert acknowledged, refreshing data...");
+
+			// Refresh alerts data to reflect the acknowledgment
+			// Only fetch active alerts since dashboard should only show unacknowledged ones
+			await fetchAlerts(false); // false = only active alerts
+
+			// Also refresh dashboard data to ensure consistency
+			// This ensures the dashboard overview shows the updated alerts
+			await fetchDashboardData();
+
+			console.log(
+				"Dashboard - Data refreshed successfully after acknowledgment"
+			);
+		} catch (error) {
+			console.error(
+				"Dashboard - Error refreshing alerts after acknowledgment:",
+				error
+			);
+		}
+	};
+
+	const handleAlertModified = async () => {
+		try {
+			// Refresh alerts data when child component modifies alerts
+			await fetchAllAlerts();
+		} catch (error) {
+			console.error(
+				"Dashboard - Error refreshing alerts after modification:",
+				error
+			);
+		}
+	};
+
+	const validateAndCleanAlerts = async () => {
+		try {
+			// Fetch fresh alerts from backend to validate current state
+			const token = localStorage.getItem("token");
+			const response = await fetch(`${API_BASE}/alerts/?limit=50`, {
+				headers: {
+					Authorization: `Bearer ${token}`,
+					"Content-Type": "application/json",
+				},
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				const backendAlerts = data.alerts || data;
+				const backendAlertIds = new Set(backendAlerts.map((a) => a._id));
+
+				// Check if current alerts state has any IDs that don't exist in backend
+				const staleAlerts = alerts.filter(
+					(alert) => !backendAlertIds.has(alert._id)
+				);
+
+				if (staleAlerts.length > 0) {
+					console.warn(
+						"Dashboard - Found stale alerts, cleaning up:",
+						staleAlerts.length
+					);
+					console.log(
+						"Dashboard - Stale alert IDs:",
+						staleAlerts.map((a) => a._id)
+					);
+
+					// Update state to only include alerts that exist in backend
+					setAlerts(backendAlerts);
+				}
+			}
+		} catch (error) {
+			console.error("Dashboard - Error validating alerts:", error);
 		}
 	};
 
 	useEffect(() => {
-		async function fetchAll() {
+		async function fetchEssentialData() {
 			try {
 				const token = localStorage.getItem("token");
 				if (!token) {
@@ -118,45 +504,83 @@ export default function DashboardPage() {
 					return;
 				}
 
+				console.log("Dashboard - Starting fetchEssentialData");
+				console.log("Dashboard - User state:", user);
+
 				// Refresh user data to ensure we have the latest information
 				const refreshedUser = await refreshUser();
 				if (refreshedUser) {
 					setUser(refreshedUser);
+					console.log("Dashboard - User refreshed:", refreshedUser);
 				} else {
 					// Fallback to local user data
 					const localUser = getUser();
 					if (localUser) {
 						setUser(localUser);
+						console.log("Dashboard - Using local user:", localUser);
 					} else {
 						router.replace("/login");
 						return;
 					}
 				}
 
-				const fetchOptions = {
-					headers: {
-						Authorization: `Bearer ${token}`,
-						"Content-Type": "application/json",
-					},
-				};
-				const [devicesRes, logsRes, alertsRes] = await Promise.all([
-					fetch(`${API_BASE}/devices/my`, fetchOptions),
-					fetch(`${API_BASE}/logs/`, fetchOptions),
-					fetch(`${API_BASE}/alerts/`, fetchOptions),
-				]);
-				if (!devicesRes.ok || !logsRes.ok || !alertsRes.ok)
-					throw new Error("Failed to fetch data");
-				setDevices(await devicesRes.json());
-				setLogs(await logsRes.json());
-				setAlerts(await alertsRes.json());
+				// Only fetch essential data initially
+				console.log("Dashboard - Calling fetchDashboardData");
+				await fetchDashboardData();
+
+				// Validate and clean any stale alerts that might exist
+				await validateAndCleanAlerts();
+
 				setLoading(false);
 			} catch (err) {
+				console.error("Dashboard - Error in fetchEssentialData:", err);
 				setError(err.message);
 				setLoading(false);
 			}
 		}
-		fetchAll();
+		fetchEssentialData();
 	}, [router]);
+
+	// Lazy load data when tabs are accessed
+	useEffect(() => {
+		if (tab === "Alerts" && alerts.length === 0 && !alertsLoading) {
+			fetchAllAlerts();
+		}
+		if (tab === "Logs" && logs.length === 0 && !logsLoading) {
+			fetchLogs();
+		}
+		if (
+			tab === "Ingredients" &&
+			ingredients.length === 0 &&
+			!ingredientsLoading
+		) {
+			fetchIngredients();
+		}
+	}, [
+		tab,
+		alerts.length,
+		logs.length,
+		ingredients.length,
+		alertsLoading,
+		logsLoading,
+		ingredientsLoading,
+	]);
+
+	// Fetch full data when switching to tabs that need it
+	useEffect(() => {
+		if (tab === "Alerts" && alerts.length <= 5) {
+			// Dashboard only has 5 alerts, fetch full list for Alerts tab
+			fetchAllAlerts();
+			// Also validate and clean any stale alerts
+			validateAndCleanAlerts();
+		}
+		if (tab === "Logs" && logs.length <= 3) {
+			// Dashboard only has 3 logs, fetch full list for Logs tab
+			fetchLogs();
+		}
+		// REMOVED: Ingredients tab no longer reloads on every click
+		// Ingredients are loaded once and cached
+	}, [tab]);
 
 	useEffect(() => {
 		if (!user) return;
@@ -212,6 +636,23 @@ export default function DashboardPage() {
 		});
 
 		socket.on("alert", (data) => {
+			console.log("Socket - Received alert:", data);
+			console.log("Socket - Current alerts count:", alerts.length);
+
+			// Validate the alert data before adding it
+			if (!data._id || !data.ingredient || !data.type) {
+				console.warn("Socket - Invalid alert data received:", data);
+				return;
+			}
+
+			// Check if this alert already exists to prevent duplicates
+			const alertExists = alerts.find((alert) => alert._id === data._id);
+			if (alertExists) {
+				console.log("Socket - Alert already exists, skipping:", data._id);
+				return;
+			}
+
+			console.log("Socket - Adding new alert:", data._id, data.ingredient);
 			setAlerts((prev) => [
 				{ ...data, createdAt: new Date(), acknowledged: false },
 				...prev,
@@ -260,60 +701,6 @@ export default function DashboardPage() {
 
 		return () => socket.disconnect();
 	}, [user]);
-
-	// Fetch unique ingredients and their summaries
-	useEffect(() => {
-		if (tab !== "Ingredients") return;
-		const fetchIngredients = async () => {
-			const token = localStorage.getItem("token");
-			const uniqueRes = await fetch(`${API_BASE}/ingredients/unique`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			if (!uniqueRes.ok) return;
-			const uniqueIngredients = await uniqueRes.json();
-			const ingredientCards = await Promise.all(
-				uniqueIngredients.map(async (name) => {
-					// Fetch latest log
-					const logRes = await fetch(
-						`${API_BASE}/ingredients/logs/${encodeURIComponent(name)}`,
-						{
-							headers: { Authorization: `Bearer ${token}` },
-						}
-					);
-					const logs = logRes.ok ? await logRes.json() : [];
-					const latest = logs[0] || {};
-					// Fetch prediction
-					const predRes = await fetch(
-						`${API_BASE}/ingredients/prediction/${encodeURIComponent(name)}`,
-						{
-							headers: { Authorization: `Bearer ${token}` },
-						}
-					);
-					const prediction = predRes.ok ? await predRes.json() : {};
-					// Fetch usage
-					const usageRes = await fetch(
-						`${API_BASE}/ingredients/usage/${encodeURIComponent(name)}`,
-						{
-							headers: { Authorization: `Bearer ${token}` },
-						}
-					);
-					const usage = usageRes.ok ? await usageRes.json() : [];
-					return {
-						name,
-						status: latest.status,
-						weight: latest.weight,
-						lastUpdated: latest.timestamp,
-						daysLeft: prediction.prediction,
-						usageData: usage,
-						logs,
-						prediction,
-					};
-				})
-			);
-			setIngredients(ingredientCards);
-		};
-		fetchIngredients();
-	}, [tab]);
 
 	const openIngredientDetails = async (ingredient) => {
 		const token = localStorage.getItem("token");
@@ -480,10 +867,24 @@ export default function DashboardPage() {
 					</div>
 				)} */}
 				{tab === "Dashboard" && (
-					<DashboardOverview
-						onAddDevice={handleAddDevice}
-						onAddIngredient={handleAddIngredient}
-					/>
+					<>
+						{ingredientsLoading ? (
+							<div className="text-center py-8">
+								<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+								<p className="mt-2 text-gray-500">Loading ingredients...</p>
+							</div>
+						) : (
+							<DashboardOverview
+								onAddDevice={handleAddDevice}
+								onAddIngredient={handleAddIngredient}
+								devices={devices}
+								alerts={alerts}
+								logs={logs}
+								ingredients={ingredients}
+								onAlertAcknowledged={handleAlertAcknowledged}
+							/>
+						)}
+					</>
 				)}
 
 				{tab === "Devices" && (
@@ -496,13 +897,98 @@ export default function DashboardPage() {
 						ingredientDetails={ingredientDetails}
 					/>
 				)}
-				{tab === "Ingredients" && <IngredientsTab />}
-				{tab === "Logs" && (
-					<div className="text-center text-gray-500">
-						Logs are now shown in the Ingredients tab.
-					</div>
-				)}
-				{tab === "Alerts" && <AlertsList alerts={alerts} />}
+				{tab === "Ingredients" &&
+					(ingredientsLoading ? (
+						<div className="text-center py-8">
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+							<p className="mt-2 text-gray-500">
+								{ingredients.length === 0
+									? "Loading ingredients..."
+									: "Updating ingredients..."}
+							</p>
+							{ingredients.length === 0 && (
+								<p className="text-xs text-gray-400 mt-1">
+									Fetching data and calculating predictions...
+								</p>
+							)}
+						</div>
+					) : (
+						<div>
+							{/* Ingredients Tab Header with Refresh Button */}
+							<div className="flex items-center justify-between mb-4">
+								<div>
+									{/* <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+										Ingredients
+									</h2> */}
+									{lastIngredientsUpdate > 0 && (
+										<p className="text-xs text-gray-500 mt-1">
+											Last updated:{" "}
+											{new Date(lastIngredientsUpdate).toLocaleString()}
+										</p>
+									)}
+								</div>
+								<button
+									onClick={() => {
+										console.log(
+											"Dashboard - Manual refresh of ingredients requested"
+										);
+										fetchIngredients();
+									}}
+									className="px-2 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-md font-semibold shadow hover:shadow-lg transition-all flex items-center gap-2"
+									disabled={ingredientsLoading}
+								>
+									{ingredientsLoading ? (
+										<>
+											<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+											Refreshing...
+										</>
+									) : (
+										<>
+											<svg
+												className="w-4 h-4"
+												fill="none"
+												stroke="currentColor"
+												viewBox="0 0 24 24"
+											>
+												<path
+													strokeLinecap="round"
+													strokeLinejoin="round"
+													strokeWidth={2}
+													d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+												/>
+											</svg>
+											Refresh
+										</>
+									)}
+								</button>
+							</div>
+							<IngredientsTab ingredients={ingredients} />
+						</div>
+					))}
+				{tab === "Logs" &&
+					(logsLoading ? (
+						<div className="text-center py-8">
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+							<p className="mt-2 text-gray-500">Loading logs...</p>
+						</div>
+					) : (
+						<div className="text-center text-gray-500">
+							Logs are now shown in the Ingredients tab.
+						</div>
+					))}
+				{tab === "Alerts" &&
+					(alertsLoading ? (
+						<div className="text-center py-8">
+							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
+							<p className="mt-2 text-gray-500">Loading alerts...</p>
+						</div>
+					) : (
+						<AlertsList
+							key={`alerts-${alerts.length}`}
+							alerts={null} // Pass null to force AlertsList to fetch its own data
+							onAlertModified={handleAlertModified}
+						/>
+					))}
 				{tab === "Charts" && null}
 				{tab === "Profile" && null}
 				{tab === "Settings" && <SettingsWidget user={user} />}
@@ -615,82 +1101,6 @@ export default function DashboardPage() {
 									))}
 								</ul>
 							</div>
-						</div>
-						<div className="mb-6">
-							<h3 className="font-semibold mb-2 flex items-center gap-2">
-								<svg
-									className="w-5 h-5 text-pink-500"
-									fill="none"
-									stroke="currentColor"
-									viewBox="0 0 24 24"
-								>
-									<path
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth={2}
-										d="M9 17v-2a4 4 0 018 0v2"
-									/>
-								</svg>
-								Usage Patterns
-							</h3>
-							{ingredientDetails.usagePattern && (
-								<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-									<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-4 flex flex-col items-center">
-										<span className="text-xs text-gray-500 mb-1">
-											Avg Daily Usage
-										</span>
-										<span className="text-2xl font-bold text-indigo-600">
-											{ingredientDetails.usagePattern.avgDaily?.toFixed(1) || 0}
-											g
-										</span>
-									</div>
-									<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-4">
-										<span className="text-xs text-gray-500 mb-1 block">
-											Per Day (7d)
-										</span>
-										<div className="flex flex-wrap gap-2">
-											{ingredientDetails.usagePattern.perDay?.map((d) => (
-												<span
-													key={d.date}
-													className="px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium"
-												>
-													{d.date}: {d.used}g
-												</span>
-											))}
-										</div>
-									</div>
-									<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-4">
-										<span className="text-xs text-gray-500 mb-1 block">
-											Per Week (4w)
-										</span>
-										<div className="flex flex-wrap gap-2">
-											{ingredientDetails.usagePattern.perWeek?.map((w) => (
-												<span
-													key={w.week}
-													className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 text-xs font-medium"
-												>
-													{w.week}: {w.used}g
-												</span>
-											))}
-										</div>
-									</div>
-									<div className="bg-white/60 dark:bg-zinc-900/40 rounded-xl shadow p-4 col-span-1 md:col-span-3">
-										<span className="text-xs text-gray-500 mb-1 block">
-											Per Month (12m)
-										</span>
-										<div className="flex flex-wrap gap-2">
-											{ingredientDetails.usagePattern.perMonth?.map((m) => (
-												<span
-													key={m.month}
-													className="px-2 py-1 rounded-full bg-pink-100 text-pink-700 text-xs font-medium"
-												>
-													{m.month}: {m.used}g
-												</span>
-											))}
-										</div>
-									</div>
-								</div>
-							)}
 						</div>
 						<div className="mb-6">
 							<h3 className="font-semibold mb-2">Anomalies</h3>
