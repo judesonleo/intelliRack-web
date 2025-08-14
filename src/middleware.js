@@ -5,7 +5,14 @@ export function middleware(request) {
 	const { pathname } = request.nextUrl;
 
 	// Public paths that don't require authentication
-	const publicPaths = ["/login", "/register", "/", "/dashboard"];
+	const publicPaths = [
+		"/login",
+		"/register",
+		"/",
+		"/dashboard",
+		"/privacy",
+		"/delete",
+	];
 
 	// If the user is not logged in and trying to access a protected route
 	if (!isLoggedIn && !publicPaths.includes(pathname)) {
