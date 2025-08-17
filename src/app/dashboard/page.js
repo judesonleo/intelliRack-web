@@ -40,9 +40,7 @@ import CloseButton from "@/components/CloseButton";
 import { AreaChart, Area } from "recharts";
 import IngredientsTab from "@/components/dashboard/IngredientsTab";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
-const API_BASE =
-	process.env.NEXT_PUBLIC_API_URL ||
-	"https://intellibackend.judesonleo.dev/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
 const TABS = ["Dashboard", "Devices", "Ingredients", "Alerts", "Settings"];
 
