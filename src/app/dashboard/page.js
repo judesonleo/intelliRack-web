@@ -611,6 +611,7 @@ export default function DashboardPage() {
 		});
 
 		socket.on("update", (data) => {
+			console.log("Dashboard - update received:", data);
 			setLiveStatus((prev) => {
 				const { deviceId, slotId, ...rest } = data;
 				return {
@@ -621,13 +622,39 @@ export default function DashboardPage() {
 					},
 				};
 			});
-		});
 
-		socket.on("deviceStatus", (data) => {
+			// Also update devices state with real-time data
 			setDevices((prev) =>
 				prev.map((device) =>
 					device.rackId === data.deviceId
-						? { ...device, isOnline: data.isOnline, lastSeen: data.lastSeen }
+						? {
+								...device,
+								isOnline: data.isOnline ?? device.isOnline,
+								lastSeen: data.lastSeen ?? device.lastSeen,
+								// Update real-time data
+								lastWeight: data.weight ?? device.lastWeight,
+								lastStatus: data.status ?? device.lastStatus,
+								ingredient: data.ingredient ?? device.ingredient,
+						  }
+						: device
+				)
+			);
+		});
+
+		socket.on("deviceStatus", (data) => {
+			console.log("Dashboard - deviceStatus received:", data);
+			setDevices((prev) =>
+				prev.map((device) =>
+					device.rackId === data.deviceId
+						? {
+								...device,
+								isOnline: data.isOnline,
+								lastSeen: data.lastSeen,
+								// Update real-time data
+								lastWeight: data.weight ?? device.lastWeight,
+								lastStatus: data.status ?? device.lastStatus,
+								ingredient: data.ingredient ?? device.ingredient,
+						  }
 						: device
 				)
 			);

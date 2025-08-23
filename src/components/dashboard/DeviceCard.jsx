@@ -182,31 +182,24 @@ const DeviceCard = ({
 						<p className="text-sm text-black mb-2">
 							{device.ingredient || "No ingredient set"}
 						</p>
-						{/* {console.log(ingredientDetails)}
-						{console.log(device)} */}
 
 						<p className="text-sm text-black mb-2">
 							{device.location || "No location set"}
 						</p>
 
-						{/* Ingredient/Stock Summary */}
-						{/* {ingredientSummary && (
-							<div className="text-sm font-medium text-indigo-700 mb-2">
-								{ingredientSummary}
-							</div>
-						)} */}
-
 						{/* Weight and Status */}
 						<div className="space-y-2">
 							<div className="text-2xl font-bold text-black">
-								{device.lastWeight ? `${device.lastWeight.toFixed(1)}g` : "--"}
+								{device.weight || device.lastWeight
+									? `${(device.weight || device.lastWeight).toFixed(1)}g`
+									: "--"}
 							</div>
 							<div
 								className={`text-sm font-medium ${getStatusColor(
-									device.lastStatus
+									device.status || device.lastStatus
 								)}`}
 							>
-								{device.lastStatus || "UNKNOWN"}
+								{device.status || device.lastStatus || "UNKNOWN"}
 							</div>
 						</div>
 					</div>

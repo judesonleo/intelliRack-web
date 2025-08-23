@@ -47,6 +47,15 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 	const [nfcWriteIngredient, setNfcWriteIngredient] = useState("");
 	const [nfcSearchQuery, setNfcSearchQuery] = useState("");
 
+	// NEW: State to track real-time device data
+	const [realTimeData, setRealTimeData] = useState({
+		weight: null,
+		status: null,
+		ingredient: null,
+		lastSeen: null,
+		isOnline: true,
+	});
+
 	useEffect(() => {
 		if (device && device.weightThresholds) {
 			setConfig({
@@ -59,6 +68,15 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 					mqttPublishInterval: 5000,
 				},
 				calibrationFactor: device.calibrationFactor || 204.99,
+			});
+
+			// Initialize real-time data with current device data
+			setRealTimeData({
+				weight: device.lastWeight,
+				status: device.lastStatus,
+				ingredient: device.ingredient,
+				lastSeen: device.lastSeen,
+				isOnline: device.isOnline,
 			});
 		}
 	}, [device]);
@@ -93,7 +111,6 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 					setNfcStatus({
 						tagPresent: false,
 						tagUID: "",
-						ingredient: "",
 						nfcEnabled: true,
 					});
 					setMessageWithTimeout("NFC Tag Removed");
@@ -129,14 +146,64 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 			}
 		};
 
+		// NEW: Handle real-time device updates (weight, status, ingredient)
+		const handleDeviceUpdate = (data) => {
+			if (data.deviceId === device?.rackId) {
+				console.log("DeviceSheet - Device update received:", data);
+				// Update the device prop with real-time data
+				// This will trigger a re-render with updated weight/status/ingredient
+				if (
+					data.weight !== undefined ||
+					data.status !== undefined ||
+					data.ingredient !== undefined
+				) {
+					// Force a re-render by updating a local state that tracks real-time data
+					setRealTimeData((prev) => {
+						const newRealTimeData = {
+							...prev,
+							weight: data.weight ?? prev.weight,
+							status: data.status ?? prev.status,
+							ingredient: data.ingredient ?? prev.ingredient,
+							lastSeen: data.lastSeen ?? prev.lastSeen,
+						};
+						console.log(
+							"DeviceSheet - Updating realTimeData:",
+							newRealTimeData
+						);
+						return newRealTimeData;
+					});
+				}
+			}
+		};
+
+		// NEW: Handle device status updates
+		const handleDeviceStatus = (data) => {
+			if (data.deviceId === device?.rackId) {
+				console.log("DeviceSheet - Device status received:", data);
+				// Update real-time data
+				setRealTimeData((prev) => ({
+					...prev,
+					weight: data.weight ?? prev.weight,
+					status: data.status ?? prev.status,
+					ingredient: data.ingredient ?? prev.ingredient,
+					lastSeen: data.lastSeen ?? prev.lastSeen,
+					isOnline: data.isOnline ?? prev.isOnline,
+				}));
+			}
+		};
+
 		socket.on("nfcEvent", handleNfcEvent);
 		socket.on("commandSent", handleCommandSent);
 		socket.on("commandResponse", handleCommandResponse);
+		socket.on("update", handleDeviceUpdate);
+		socket.on("deviceStatus", handleDeviceStatus);
 
 		return () => {
 			socket.off("nfcEvent", handleNfcEvent);
 			socket.off("commandSent", handleCommandSent);
 			socket.off("commandResponse", handleCommandResponse);
+			socket.off("update", handleDeviceUpdate);
+			socket.off("deviceStatus", handleDeviceStatus);
 		};
 	}, [socket, device]);
 
@@ -325,22 +392,29 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 
 				{/* Enhanced Status Header */}
 				<div className="relative mb-8 p-6 bg-white/30 dark:bg-zinc-900/60 rounded-xl shadow-[inset_0_2px_8px_rgba(0,0,0,0.1),inset_0_-1px_4px_rgba(255,255,255,0.1)] dark:shadow-[inset_0_2px_8px_rgba(0,0,0,0.2),inset_0_-1px_4px_rgba(255,255,255,0.05)]">
+					{/* Debug Info - Remove this in production */}
+					{/* {process.env.NODE_ENV === "development" && (
+						<div className="mb-4 p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg text-xs">
+							<strong>Debug:</strong> Real-time data:{" "}
+							{JSON.stringify(realTimeData)}
+						</div>
+					)} */}
 					{/* Header Title with Live/Offline Status */}
 					<div className="flex items-center justify-center mb-6">
 						<div className="flex items-center gap-2 px-4 py-2 rounded-full shadow-[inset_0_1px_3px_rgba(0,0,0,0.15),inset_0_-1px_2px_rgba(255,255,255,0.1)] dark:shadow-[inset_0_1px_3px_rgba(0,0,0,0.3),inset_0_-1px_2px_rgba(255,255,255,0.05)]">
 							<div
 								className={`w-2 h-2 rounded-full ${
-									device?.isOnline ? "bg-green-500" : "bg-red-500"
+									realTimeData.isOnline ? "bg-green-500" : "bg-red-500"
 								} animate-pulse`}
 							></div>
 							<span
 								className={`text-sm font-medium ${
-									device?.isOnline
+									realTimeData.isOnline
 										? "text-green-700 dark:text-green-400"
 										: "text-red-700 dark:text-red-400"
 								}`}
 							>
-								{device?.isOnline ? "LIVE" : "OFFLINE"}
+								{realTimeData.isOnline ? "LIVE" : "OFFLINE"}
 							</span>
 						</div>
 					</div>
@@ -353,7 +427,11 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 								Weight
 							</div>
 							<div className="text-xl font-bold text-gray-700 dark:text-gray-300 transition-all duration-300 group-hover:scale-105">
-								{device?.lastWeight ? `${device.lastWeight.toFixed(1)}g` : "--"}
+								{realTimeData.weight !== null
+									? `${realTimeData.weight.toFixed(1)}g`
+									: device?.lastWeight
+									? `${device.lastWeight.toFixed(1)}g`
+									: "--"}
 							</div>
 						</div>
 
@@ -363,7 +441,7 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 								Ingredient
 							</div>
 							<div className="text-xl font-bold text-gray-700 dark:text-gray-300 transition-all duration-300 group-hover:scale-105">
-								{device?.ingredient || "Not Set"}
+								{realTimeData.ingredient || device?.ingredient || "Not Set"}
 							</div>
 						</div>
 
@@ -374,20 +452,20 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 							</div>
 							<div
 								className={`text-lg font-bold px-3 py-1 rounded-full transition-all duration-300 group-hover:scale-105 ${
-									device?.lastStatus === "GOOD"
+									(realTimeData.status || device?.lastStatus) === "GOOD"
 										? "bg-green-200 text-green-800 dark:bg-green-800/30 dark:text-green-300"
-										: device?.lastStatus === "OK"
+										: (realTimeData.status || device?.lastStatus) === "OK"
 										? "bg-yellow-200 text-yellow-800 dark:bg-yellow-800/30 dark:text-yellow-300"
-										: device?.lastStatus === "LOW"
+										: (realTimeData.status || device?.lastStatus) === "LOW"
 										? "bg-orange-200 text-orange-800 dark:bg-orange-800/30 dark:text-orange-300"
-										: device?.lastStatus === "VLOW"
+										: (realTimeData.status || device?.lastStatus) === "VLOW"
 										? "bg-red-200 text-red-800 dark:bg-red-800/30 dark:text-red-300"
-										: device?.lastStatus === "EMPTY"
+										: (realTimeData.status || device?.lastStatus) === "EMPTY"
 										? "bg-red-300 text-red-900 dark:bg-red-900/30 dark:text-red-200"
 										: "bg-gray-200 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
 								}`}
 							>
-								{device?.lastStatus || "UNKNOWN"}
+								{realTimeData.status || device?.lastStatus || "UNKNOWN"}
 							</div>
 						</div>
 
@@ -398,12 +476,12 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 							</div>
 							<div
 								className={`text-lg font-bold px-3 py-1 rounded-full transition-all duration-300 group-hover:scale-105 ${
-									device?.isOnline
+									realTimeData.isOnline
 										? "bg-green-200 text-green-800 dark:bg-green-800/30 dark:text-green-300"
 										: "bg-gray-200 text-gray-800 dark:bg-gray-800/30 dark:text-gray-300"
 								}`}
 							>
-								{device?.isOnline ? "Online" : "Offline"}
+								{realTimeData.isOnline ? "Online" : "Offline"}
 							</div>
 						</div>
 					</div>
@@ -412,7 +490,9 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 					<div className="text-center mt-6 pt-4 border-t border-gray-300 dark:border-zinc-600">
 						<div className="text-xs text-gray-500 dark:text-gray-400">
 							Last updated:{" "}
-							{device?.lastSeen
+							{realTimeData.lastSeen
+								? new Date(realTimeData.lastSeen).toLocaleString()
+								: device?.lastSeen
 								? new Date(device.lastSeen).toLocaleString()
 								: "Never"}
 						</div>
@@ -450,18 +530,20 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 											<span className="text-zinc-600">Status:</span>
 											<span
 												className={`font-medium ${
-													device.isOnline
+													realTimeData.isOnline
 														? "text-green-600 dark:text-green-400"
 														: "text-red-600 dark:text-red-400"
 												}`}
 											>
-												{device.isOnline ? "Online" : "Offline"}
+												{realTimeData.isOnline ? "Online" : "Offline"}
 											</span>
 										</div>
 										<div className="flex justify-between">
 											<span className="text-zinc-600">Weight:</span>
 											<span className="text-zinc-900 dark:text-white font-medium">
-												{device.lastWeight
+												{realTimeData.weight !== null
+													? `${realTimeData.weight.toFixed(1)}g`
+													: device.lastWeight
 													? `${device.lastWeight.toFixed(1)}g`
 													: "--"}
 											</span>
@@ -469,13 +551,15 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 										<div className="flex justify-between">
 											<span className="text-zinc-600">Stock Level:</span>
 											<span className="text-zinc-900 dark:text-white font-medium">
-												{device.lastStatus || "UNKNOWN"}
+												{realTimeData.status || device.lastStatus || "UNKNOWN"}
 											</span>
 										</div>
 										<div className="flex justify-between">
 											<span className="text-zinc-600">Last Seen:</span>
 											<span className="text-zinc-900 dark:text-white font-medium">
-												{device.lastSeen
+												{realTimeData.lastSeen
+													? new Date(realTimeData.lastSeen).toLocaleString()
+													: device.lastSeen
 													? new Date(device.lastSeen).toLocaleString()
 													: "Never"}
 											</span>

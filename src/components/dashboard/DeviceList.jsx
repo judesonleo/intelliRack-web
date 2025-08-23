@@ -11,42 +11,56 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 	const [ingredientDetails, setIngredientDetails] = useState(null);
 
 	useEffect(() => {
-		if (!socket) return;
+		if (!socket) {
+			console.log("DeviceList: No socket available");
+			return;
+		}
+
+		console.log("DeviceList: Socket connected, setting up listeners");
+		console.log("DeviceList: Current socket state:", {
+			connected: socket.connected,
+			id: socket.id,
+			readyState: socket.readyState,
+		});
 
 		// Listen for device status updates
 		const handleDeviceStatus = (data) => {
-			// console.log("deviceStatus", data);
-			setDeviceStatus(
-				(prev) =>
-					new Map(
-						prev.set(data.deviceId, {
-							...prev.get(data.deviceId),
-							isOnline: data.isOnline,
-							lastSeen: data.lastSeen,
-							ingredient: data.ingredient, // always set this
-							weight: data.weight,
-							status: data.status,
-						})
-					)
-			);
+			console.log("deviceStatus received:", data);
+			setDeviceStatus((prev) => {
+				const newMap = new Map(prev);
+				const currentStatus = newMap.get(data.deviceId) || {};
+				const updatedStatus = {
+					...currentStatus,
+					isOnline: data.isOnline,
+					lastSeen: data.lastSeen,
+					ingredient: data.ingredient,
+					weight: data.weight,
+					status: data.status,
+				};
+				console.log(`Updating device ${data.deviceId}:`, updatedStatus);
+				newMap.set(data.deviceId, updatedStatus);
+				return newMap;
+			});
 		};
 
 		// Listen for general updates
 		const handleUpdate = (data) => {
-			// console.log("update", data);
-			setDeviceStatus(
-				(prev) =>
-					new Map(
-						prev.set(data.deviceId, {
-							...prev.get(data.deviceId),
-							isOnline: data.isOnline ?? true,
-							lastSeen: data.lastSeen ?? new Date(),
-							ingredient: data.ingredient, // always set this
-							weight: data.weight,
-							status: data.status,
-						})
-					)
-			);
+			console.log("update received:", data);
+			setDeviceStatus((prev) => {
+				const newMap = new Map(prev);
+				const currentStatus = newMap.get(data.deviceId) || {};
+				const updatedStatus = {
+					...currentStatus,
+					isOnline: data.isOnline ?? true,
+					lastSeen: data.lastSeen ?? new Date(),
+					ingredient: data.ingredient,
+					weight: data.weight,
+					status: data.status,
+				};
+				console.log(`Updating device ${data.deviceId}:`, updatedStatus);
+				newMap.set(data.deviceId, updatedStatus);
+				return newMap;
+			});
 		};
 
 		socket.on("deviceStatus", handleDeviceStatus);
@@ -163,14 +177,56 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 	// Merge device data with real-time status (per-slot)
 	const devicesWithStatus = devices.map((device) => {
 		const status = deviceStatus.get(device.rackId);
-		return {
+		const mergedDevice = {
 			...device,
 			ingredient: status?.ingredient ?? device.ingredient,
 			isOnline: status?.isOnline ?? device.isOnline,
 			lastSeen: status?.lastSeen ?? device.lastSeen,
 			lastWeight: status?.weight ?? device.lastWeight,
 			lastStatus: status?.status ?? device.lastStatus,
+			// Ensure we're using the real-time data when available
+			weight: status?.weight ?? device.lastWeight,
+			status: status?.status ?? device.lastStatus,
 		};
+
+		// Debug logging for device data merging
+		if (status) {
+			console.log(`Device ${device.rackId} merged data:`, {
+				original: {
+					ingredient: device.ingredient,
+					lastWeight: device.lastWeight,
+					lastStatus: device.lastStatus,
+				},
+				realtime: {
+					ingredient: status.ingredient,
+					weight: status.weight,
+					status: status.status,
+				},
+				merged: {
+					ingredient: mergedDevice.ingredient,
+					weight: mergedDevice.weight,
+					status: mergedDevice.status,
+				},
+			});
+		}
+
+		return mergedDevice;
+	});
+
+	// Debug logging for component render
+	console.log("DeviceList render:", {
+		devicesCount: devices.length,
+		deviceStatusSize: deviceStatus.size,
+		devicesWithStatusCount: devicesWithStatus.length,
+		deviceStatusKeys: Array.from(deviceStatus.keys()),
+		firstDeviceStatus: devicesWithStatus[0]
+			? {
+					rackId: devicesWithStatus[0].rackId,
+					ingredient: devicesWithStatus[0].ingredient,
+					weight: devicesWithStatus[0].weight,
+					status: devicesWithStatus[0].status,
+			  }
+			: null,
 	});
 
 	return (
