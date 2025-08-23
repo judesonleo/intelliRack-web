@@ -398,7 +398,7 @@ const AddDeviceCard = ({ onClick, socket }) => {
 		// Check server health first
 		try {
 			const healthResponse = await fetch(
-				"https://intellibackend.judesonleo.me/health"
+				process.env.NEXT_PUBLIC_API_URL + "/health"
 			);
 			if (healthResponse.ok) {
 				const healthData = await healthResponse.json();
