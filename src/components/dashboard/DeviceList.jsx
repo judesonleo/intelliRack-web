@@ -16,16 +16,35 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 			return;
 		}
 
-		console.log("DeviceList: Socket connected, setting up listeners");
-		console.log("DeviceList: Current socket state:", {
+		const componentId = `DeviceList_${Date.now()}`;
+		console.log(`${componentId}: Socket connected, setting up listeners`);
+		console.log(`${componentId}: Current socket state:`, {
 			connected: socket.connected,
 			id: socket.id,
 			readyState: socket.readyState,
 		});
 
-		// Listen for device status updates
+		// Create unique handlers for DeviceList with device filtering
 		const handleDeviceStatus = (data) => {
-			console.log("deviceStatus received:", data);
+			console.log(`${componentId} - deviceStatus received:`, data);
+
+			// Only process status for devices we know about
+			const isOurDevice = devices.some(
+				(d) => d.rackId === data.deviceId || d._id === data.deviceId
+			);
+
+			if (!isOurDevice) {
+				console.log(
+					`${componentId} - Ignoring status for unknown device: ${data.deviceId}`
+				);
+				return;
+			}
+
+			console.log(
+				`${componentId} - Processing status for device: ${data.deviceId}`,
+				data
+			);
+
 			setDeviceStatus((prev) => {
 				const newMap = new Map(prev);
 				const currentStatus = newMap.get(data.deviceId) || {};
@@ -37,15 +56,36 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 					weight: data.weight,
 					status: data.status,
 				};
-				console.log(`Updating device ${data.deviceId}:`, updatedStatus);
+				console.log(
+					`${componentId} - Updating device ${data.deviceId}:`,
+					updatedStatus
+				);
 				newMap.set(data.deviceId, updatedStatus);
 				return newMap;
 			});
 		};
 
-		// Listen for general updates
+		// Listen for general updates with device filtering
 		const handleUpdate = (data) => {
-			console.log("update received:", data);
+			console.log(`${componentId} - update received:`, data);
+
+			// Only process updates for devices we know about
+			const isOurDevice = devices.some(
+				(d) => d.rackId === data.deviceId || d._id === data.deviceId
+			);
+
+			if (!isOurDevice) {
+				console.log(
+					`${componentId} - Ignoring update for unknown device: ${data.deviceId}`
+				);
+				return;
+			}
+
+			console.log(
+				`${componentId} - Processing update for device: ${data.deviceId}`,
+				data
+			);
+
 			setDeviceStatus((prev) => {
 				const newMap = new Map(prev);
 				const currentStatus = newMap.get(data.deviceId) || {};
@@ -57,18 +97,33 @@ const DeviceList = ({ devices, onDeviceClick, onAddDevice, socket }) => {
 					weight: data.weight,
 					status: data.status,
 				};
-				console.log(`Updating device ${data.deviceId}:`, updatedStatus);
+				console.log(
+					`${componentId} - Updating device ${data.deviceId}:`,
+					updatedStatus
+				);
 				newMap.set(data.deviceId, updatedStatus);
 				return newMap;
 			});
 		};
 
-		socket.on("deviceStatus", handleDeviceStatus);
-		socket.on("update", handleUpdate);
+		// Store handler references for proper cleanup
+		const handlers = {
+			deviceStatus: handleDeviceStatus,
+			update: handleUpdate,
+		};
+
+		// Use specific event handlers for DeviceList
+		Object.entries(handlers).forEach(([event, handler]) => {
+			socket.on(event, handler);
+		});
+
+		console.log(`${componentId} - Event listeners registered`);
 
 		return () => {
-			socket.off("deviceStatus", handleDeviceStatus);
-			socket.off("update", handleUpdate);
+			console.log(`${componentId} - Cleaning up event listeners`);
+			Object.entries(handlers).forEach(([event, handler]) => {
+				socket.off(event, handler);
+			});
 		};
 	}, [socket]);
 

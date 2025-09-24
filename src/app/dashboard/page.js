@@ -40,9 +40,17 @@ import CloseButton from "@/components/CloseButton";
 import { AreaChart, Area } from "recharts";
 import IngredientsTab from "@/components/dashboard/IngredientsTab";
 import DashboardOverview from "@/components/dashboard/DashboardOverview";
+import MultiDeviceMonitor from "@/components/dashboard/MultiDeviceMonitor";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 
-const TABS = ["Dashboard", "Devices", "Ingredients", "Alerts", "Settings"];
+const TABS = [
+	"Dashboard",
+	"Devices",
+	"Monitor",
+	"Ingredients",
+	"Alerts",
+	"Settings",
+];
 
 // Placeholder data for charts
 const ingredientPieData = [
@@ -599,7 +607,14 @@ export default function DashboardPage() {
 			// Authenticate socket with user ID
 			const userId = user.id || user._id;
 			if (userId) {
-				socket.emit("authenticate", { userId });
+				console.log(
+					`💻 Web WebSocket connected, authenticating user: ${userId}`
+				);
+				socket.emit("authenticate", {
+					userId,
+					clientType: "web",
+					timestamp: Date.now(),
+				});
 			} else {
 				console.error("No user ID found in user object:", user);
 				console.error("Available user fields:", Object.keys(user));
@@ -610,8 +625,20 @@ export default function DashboardPage() {
 			console.log("Socket authenticated:", data);
 		});
 
-		socket.on("update", (data) => {
+		// Handle real-time device updates with improved filtering
+		const onUpdateDashboard = (data) => {
 			console.log("Dashboard - update received:", data);
+			console.log(
+				"Dashboard - Current devices:",
+				devices.map((d) => d.rackId)
+			);
+
+			// Ensure we have valid deviceId
+			if (!data.deviceId) {
+				console.warn("Dashboard - No deviceId in update:", data);
+				return;
+			}
+
 			setLiveStatus((prev) => {
 				const { deviceId, slotId, ...rest } = data;
 				return {
@@ -624,41 +651,91 @@ export default function DashboardPage() {
 			});
 
 			// Also update devices state with real-time data
-			setDevices((prev) =>
-				prev.map((device) =>
-					device.rackId === data.deviceId
-						? {
-								...device,
-								isOnline: data.isOnline ?? device.isOnline,
-								lastSeen: data.lastSeen ?? device.lastSeen,
-								// Update real-time data
-								lastWeight: data.weight ?? device.lastWeight,
-								lastStatus: data.status ?? device.lastStatus,
-								ingredient: data.ingredient ?? device.ingredient,
-						  }
-						: device
-				)
-			);
-		});
+			setDevices((prev) => {
+				const updated = prev.map((device) => {
+					// Check both rackId and _id for device matching
+					const isTargetDevice =
+						device.rackId === data.deviceId || device._id === data.deviceId;
 
-		socket.on("deviceStatus", (data) => {
+					if (isTargetDevice) {
+						console.log(
+							`Dashboard - Updating device ${device.rackId} with data:`,
+							data
+						);
+						return {
+							...device,
+							isOnline: data.isOnline ?? device.isOnline,
+							lastSeen: data.lastSeen ?? device.lastSeen,
+							// Update real-time data
+							lastWeight: data.weight ?? device.lastWeight,
+							lastStatus: data.status ?? device.lastStatus,
+							ingredient: data.ingredient ?? device.ingredient,
+						};
+					}
+					return device;
+				});
+
+				// Log if no device was updated
+				const wasUpdated = updated.some((d, index) => d !== prev[index]);
+				if (!wasUpdated) {
+					console.warn(`Dashboard - No device found for ID: ${data.deviceId}`);
+				}
+
+				return updated;
+			});
+		};
+
+		socket.on("update", onUpdateDashboard);
+
+		// Handle device status updates with improved filtering
+		const onStatusDashboard = (data) => {
 			console.log("Dashboard - deviceStatus received:", data);
-			setDevices((prev) =>
-				prev.map((device) =>
-					device.rackId === data.deviceId
-						? {
-								...device,
-								isOnline: data.isOnline,
-								lastSeen: data.lastSeen,
-								// Update real-time data
-								lastWeight: data.weight ?? device.lastWeight,
-								lastStatus: data.status ?? device.lastStatus,
-								ingredient: data.ingredient ?? device.ingredient,
-						  }
-						: device
-				)
+			console.log(
+				"Dashboard - Current devices:",
+				devices.map((d) => d.rackId)
 			);
-		});
+
+			// Ensure we have valid deviceId
+			if (!data.deviceId) {
+				console.warn("Dashboard - No deviceId in status update:", data);
+				return;
+			}
+
+			setDevices((prev) => {
+				const updated = prev.map((device) => {
+					// Check both rackId and _id for device matching
+					const isTargetDevice =
+						device.rackId === data.deviceId || device._id === data.deviceId;
+
+					if (isTargetDevice) {
+						console.log(
+							`Dashboard - Updating device ${device.rackId} with status:`,
+							data
+						);
+						return {
+							...device,
+							isOnline: data.isOnline,
+							lastSeen: data.lastSeen,
+							// Update real-time data
+							lastWeight: data.weight ?? device.lastWeight,
+							lastStatus: data.status ?? device.lastStatus,
+							ingredient: data.ingredient ?? device.ingredient,
+						};
+					}
+					return device;
+				});
+
+				// Log if no device was updated
+				const wasUpdated = updated.some((d, index) => d !== prev[index]);
+				if (!wasUpdated) {
+					console.warn(`Dashboard - No device found for ID: ${data.deviceId}`);
+				}
+
+				return updated;
+			});
+		};
+
+		socket.on("deviceStatus", onStatusDashboard);
 
 		socket.on("alert", (data) => {
 			console.log("Socket - Received alert:", data);
@@ -690,11 +767,36 @@ export default function DashboardPage() {
 			}
 		});
 
-		socket.on("commandResponse", (data) => {
-			console.log("Command response received:", data);
-			// You can show a notification or update UI here
-			// For now, just log it
-		});
+		// Handle command responses with device filtering
+		const onCommandResponseDashboard = (data) => {
+			console.log("Dashboard - Command response received:", data);
+
+			// Ensure we have valid deviceId
+			if (!data.deviceId) {
+				console.warn("Dashboard - No deviceId in command response:", data);
+				return;
+			}
+
+			// Check if this response is for one of our devices
+			const device = devices.find(
+				(d) => d.rackId === data.deviceId || d._id === data.deviceId
+			);
+
+			if (device) {
+				console.log(
+					`Dashboard - Command response for device ${device.rackId}:`,
+					data
+				);
+				// You can show a notification or update UI here
+				// For now, just log it
+			} else {
+				console.log(
+					`Dashboard - Command response for unknown device: ${data.deviceId}`
+				);
+			}
+		};
+
+		socket.on("commandResponse", onCommandResponseDashboard);
 
 		// Utility function to send broadcast commands
 		window.sendBroadcastCommand = (command, data = {}) => {
@@ -921,6 +1023,10 @@ export default function DashboardPage() {
 						liveStatus={liveStatus}
 						ingredientDetails={ingredientDetails}
 					/>
+				)}
+
+				{tab === "Monitor" && (
+					<MultiDeviceMonitor devices={devices} socket={socketRef.current} />
 				)}
 				{tab === "Ingredients" &&
 					(ingredientsLoading ? (

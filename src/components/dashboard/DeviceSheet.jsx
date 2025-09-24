@@ -88,12 +88,24 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 		}
 	}, [device]);
 
-	// Listen for NFC events and command responses from socket
+	// Listen for NFC events and command responses from socket with unique namespaced handlers
 	useEffect(() => {
-		if (!socket) return;
+		if (!socket || !device?.rackId) return;
 
+		const deviceId = device.rackId;
+		const componentId = `DeviceSheet_${deviceId}_${Date.now()}`;
+		console.log(`${componentId}: Setting up listeners for device ${deviceId}`);
+
+		// Create uniquely namespaced event handlers to prevent conflicts
 		const handleNfcEvent = (data) => {
-			if (data.deviceId === device?.rackId) {
+			// Check both rackId and _id for device matching
+			const isTargetDevice =
+				data.deviceId === deviceId ||
+				data.deviceId === device?.rackId ||
+				data.deviceId === device?._id;
+
+			if (isTargetDevice) {
+				console.log(`${componentId} - NFC event for ${deviceId}:`, data);
 				if (data.type === "read") {
 					setNfcStatus({
 						tagPresent: true,
@@ -123,11 +135,22 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 				} else if (data.type === "format") {
 					setMessageWithTimeout(data.response || "NFC Format: Success");
 				}
+			} else {
+				console.log(
+					`${componentId} - Ignoring NFC event for different device: ${data.deviceId} (expected: ${deviceId})`
+				);
 			}
 		};
 
 		const handleCommandSent = (data) => {
-			if (data.deviceId === device?.rackId) {
+			// Check both rackId and _id for device matching
+			const isTargetDevice =
+				data.deviceId === deviceId ||
+				data.deviceId === device?.rackId ||
+				data.deviceId === device?._id;
+
+			if (isTargetDevice) {
+				console.log(`${componentId} - Command sent for ${deviceId}:`, data);
 				if (data.success) {
 					setMessageWithTimeout(`Command sent successfully: ${data.command}`);
 				} else {
@@ -135,29 +158,46 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 						`Command failed: ${data.command} - ${data.error || "Unknown error"}`
 					);
 				}
-			}
-		};
-
-		const handleCommandResponse = (data) => {
-			if (data.deviceId === device?.rackId) {
-				setMessageWithTimeout(
-					`Response: ${data.response || data.message || "Command completed"}`
+			} else {
+				console.log(
+					`${componentId} - Ignoring command sent for different device: ${data.deviceId} (expected: ${deviceId})`
 				);
 			}
 		};
 
-		// NEW: Handle real-time device updates (weight, status, ingredient)
+		const handleCommandResponse = (data) => {
+			// Check both rackId and _id for device matching
+			const isTargetDevice =
+				data.deviceId === deviceId ||
+				data.deviceId === device?.rackId ||
+				data.deviceId === device?._id;
+
+			if (isTargetDevice) {
+				console.log(`${componentId} - Command response for ${deviceId}:`, data);
+				setMessageWithTimeout(
+					`Response: ${data.response || data.message || "Command completed"}`
+				);
+			} else {
+				console.log(
+					`${componentId} - Ignoring command response for different device: ${data.deviceId} (expected: ${deviceId})`
+				);
+			}
+		};
+
 		const handleDeviceUpdate = (data) => {
-			if (data.deviceId === device?.rackId) {
-				console.log("DeviceSheet - Device update received:", data);
-				// Update the device prop with real-time data
-				// This will trigger a re-render with updated weight/status/ingredient
+			// Check both rackId and _id for device matching
+			const isTargetDevice =
+				data.deviceId === deviceId ||
+				data.deviceId === device?.rackId ||
+				data.deviceId === device?._id;
+
+			if (isTargetDevice) {
+				console.log(`${componentId} - Device update for ${deviceId}:`, data);
 				if (
 					data.weight !== undefined ||
 					data.status !== undefined ||
 					data.ingredient !== undefined
 				) {
-					// Force a re-render by updating a local state that tracks real-time data
 					setRealTimeData((prev) => {
 						const newRealTimeData = {
 							...prev,
@@ -167,20 +207,28 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 							lastSeen: data.lastSeen ?? prev.lastSeen,
 						};
 						console.log(
-							"DeviceSheet - Updating realTimeData:",
+							`${componentId} - Updating realTimeData:`,
 							newRealTimeData
 						);
 						return newRealTimeData;
 					});
 				}
+			} else {
+				console.log(
+					`${componentId} - Ignoring update for different device: ${data.deviceId} (expected: ${deviceId})`
+				);
 			}
 		};
 
-		// NEW: Handle device status updates
 		const handleDeviceStatus = (data) => {
-			if (data.deviceId === device?.rackId) {
-				console.log("DeviceSheet - Device status received:", data);
-				// Update real-time data
+			// Check both rackId and _id for device matching
+			const isTargetDevice =
+				data.deviceId === deviceId ||
+				data.deviceId === device?.rackId ||
+				data.deviceId === device?._id;
+
+			if (isTargetDevice) {
+				console.log(`${componentId} - Device status for ${deviceId}:`, data);
 				setRealTimeData((prev) => ({
 					...prev,
 					weight: data.weight ?? prev.weight,
@@ -189,23 +237,36 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 					lastSeen: data.lastSeen ?? prev.lastSeen,
 					isOnline: data.isOnline ?? prev.isOnline,
 				}));
+			} else {
+				console.log(
+					`${componentId} - Ignoring status for different device: ${data.deviceId} (expected: ${deviceId})`
+				);
 			}
 		};
 
-		socket.on("nfcEvent", handleNfcEvent);
-		socket.on("commandSent", handleCommandSent);
-		socket.on("commandResponse", handleCommandResponse);
-		socket.on("update", handleDeviceUpdate);
-		socket.on("deviceStatus", handleDeviceStatus);
+		// Store handler references for cleanup
+		const handlers = {
+			nfcEvent: handleNfcEvent,
+			commandSent: handleCommandSent,
+			commandResponse: handleCommandResponse,
+			update: handleDeviceUpdate,
+			deviceStatus: handleDeviceStatus,
+		};
+
+		// Add event listeners with unique handler references
+		Object.entries(handlers).forEach(([event, handler]) => {
+			socket.on(event, handler);
+		});
+
+		console.log(`${componentId} - Event listeners registered`);
 
 		return () => {
-			socket.off("nfcEvent", handleNfcEvent);
-			socket.off("commandSent", handleCommandSent);
-			socket.off("commandResponse", handleCommandResponse);
-			socket.off("update", handleDeviceUpdate);
-			socket.off("deviceStatus", handleDeviceStatus);
+			console.log(`${componentId} - Cleaning up event listeners`);
+			Object.entries(handlers).forEach(([event, handler]) => {
+				socket.off(event, handler);
+			});
 		};
-	}, [socket, device]);
+	}, [socket, device?.rackId, isOpen]); // Added isOpen dependency to recreate listeners when sheet opens
 
 	// Cleanup message timeout on unmount
 	useEffect(() => {
@@ -272,7 +333,23 @@ const DeviceSheet = ({ device, isOpen, onClose, socket }) => {
 	};
 
 	const handleTare = () => sendCommand("tare");
-	const handleCalibrate = () => sendCommand("calibrate");
+	const handleCalibrate = () => {
+		const confirmed = window.confirm(
+			"Calibrate Scale\n\n" +
+				"This will start automatic calibration using a 100g known weight.\n\n" +
+				"⚠️ IMPORTANT:\n" +
+				"• Have exactly 100g weight ready\n" +
+				"• Remove all items from scale first\n" +
+				"• Place 100g weight when prompted\n" +
+				"• Do not touch during calibration\n" +
+				"• Negative calibration factors are normal\n\n" +
+				"Continue with calibration?"
+		);
+
+		if (confirmed) {
+			sendCommand("calibrate");
+		}
+	};
 	const handleRestart = () => sendCommand("restart");
 	const handleResetWiFi = () => sendCommand("resetwifi");
 
