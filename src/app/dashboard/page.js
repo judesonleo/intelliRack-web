@@ -46,7 +46,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL;
 const TABS = [
 	"Dashboard",
 	"Devices",
-	"Monitor",
+	// "Monitor",
 	"Ingredients",
 	"Alerts",
 	"Settings",
@@ -1025,9 +1025,9 @@ export default function DashboardPage() {
 					/>
 				)}
 
-				{tab === "Monitor" && (
+				{/* {tab === "Monitor" && (
 					<MultiDeviceMonitor devices={devices} socket={socketRef.current} />
-				)}
+				)} */}
 				{tab === "Ingredients" &&
 					(ingredientsLoading ? (
 						<div className="text-center py-8">
